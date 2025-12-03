@@ -1,0 +1,71 @@
+# Claude Relay Service Configuration
+# 复制此文件为 config.toml 并填入真实配置
+#
+# 注意：你不需要配置所有类型的账户！
+# - 只使用 Claude：配置 claude-oauth 或 claude-api 账户
+# - 只使用 Gemini：配置 gemini 账户
+# - 同时使用：配置多种类型账户
+
+[server]
+host = "127.0.0.1"
+port = 3000
+database_path = "data/relay.db"
+log_level = "info"  # trace, debug, info, warn, error
+
+# API Keys for authentication (leave empty to disable auth)
+api_keys = [
+    # "your-api-key-1",
+    # "your-api-key-2",
+]
+
+# Sticky session configuration
+[session]
+sticky_ttl_seconds = 3600          # Session TTL (1 hour)
+renewal_threshold_seconds = 300     # Renew when less than 5 minutes remaining
+
+# ============================================================
+# Account configurations - 配置你需要的账户类型
+# Each account must have a unique "id" field
+# ============================================================
+
+# ----- Claude OAuth 账户 (from Claude Code CLI) -----
+# [[accounts]]
+# type = "claude-oauth"
+# id = "claude-1"
+# name = "Claude OAuth Account 1"
+# priority = 100
+# enabled = true
+# refresh_token = "your-refresh-token-here"
+# api_url = "https://api.anthropic.com"  # Optional: custom API URL
+# [accounts.proxy]
+# type = "socks5"
+# host = "127.0.0.1"
+# port = 1080
+# username = "user"      # optional
+# password = "pass"      # optional
+
+# ----- Claude API Key 账户 (standard API) -----
+[[accounts]]
+type = "claude-api"
+id = "claude-api-1"
+name = "Claude API Account"
+priority = 100
+enabled = true
+api_key = "sk-ant-api03-xxxx"
+# api_url = "https://api.anthropic.com"  # Optional: custom API URL
+
+# ----- Gemini 账户 (Google OAuth) -----
+# [[accounts]]
+# type = "gemini"
+# id = "gemini-1"
+# name = "Gemini Account 1"
+# priority = 100
+# enabled = true
+# refresh_token = "your-google-refresh-token"
+# api_url = "https://cloudcode.googleapis.com"  # Optional: custom API URL
+# [accounts.proxy]
+# type = "http"
+# host = "proxy.example.com"
+# port = 8080
+# username = "user"
+# password = "pass"

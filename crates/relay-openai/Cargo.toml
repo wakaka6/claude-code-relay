@@ -1,0 +1,14 @@
+[package]
+name = "relay-openai"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+relay-core = { workspace = true }
+relay-claude = { workspace = true }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+uuid.workspace = true
