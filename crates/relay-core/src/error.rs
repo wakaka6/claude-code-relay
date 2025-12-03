@@ -26,6 +26,9 @@ pub enum RelayError {
     #[error("Organization disabled: {0}")]
     OrganizationDisabled(String),
 
+    #[error("Content filtered: {0}")]
+    ContentFiltered(String),
+
     #[error("API overloaded, retry after {retry_after_minutes} minutes")]
     Overloaded { retry_after_minutes: u32 },
 
@@ -74,6 +77,9 @@ impl RelayError {
             403 if body.contains("organization has been disabled") => {
                 RelayError::OrganizationDisabled(body.to_string())
             }
+            403 if body.contains("content filter") || body.contains("permission_error") => {
+                RelayError::ContentFiltered(body.to_string())
+            }
             403 => RelayError::Unauthorized(body.to_string()),
             429 if body.contains("weekly usage limit") && body.to_lowercase().contains("opus") => {
                 RelayError::OpusWeeklyLimit
@@ -120,6 +126,14 @@ impl RelayError {
                 "error": {
                     "code": "403",
                     "type": "organization_disabled",
+                    "message": msg
+                }
+            }),
+            RelayError::ContentFiltered(msg) => serde_json::json!({
+                "type": "error",
+                "error": {
+                    "code": "403",
+                    "type": "content_filtered",
                     "message": msg
                 }
             }),

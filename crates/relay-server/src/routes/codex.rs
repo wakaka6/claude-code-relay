@@ -46,6 +46,9 @@ fn handle_relay_error(
             scheduler.mark_account_unavailable(account_id, "insufficient_quota");
             true
         }
+        RelayError::ContentFiltered(_) => {
+            false
+        }
         _ => false,
     }
 }

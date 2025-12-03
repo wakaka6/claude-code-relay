@@ -88,6 +88,9 @@ fn handle_relay_error(
             scheduler.mark_account_unavailable(account_id, "insufficient_quota");
             true
         }
+        RelayError::ContentFiltered(_) => {
+            false
+        }
         _ => false,
     }
 }
@@ -227,6 +230,8 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match &self.0 {
             RelayError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
+            RelayError::ContentFiltered(msg) => (StatusCode::FORBIDDEN, msg.clone()),
+            RelayError::OrganizationDisabled(msg) => (StatusCode::FORBIDDEN, msg.clone()),
             RelayError::RateLimited(retry_after) => (
                 StatusCode::TOO_MANY_REQUESTS,
                 format!("Rate limited, retry after {} seconds", retry_after),
