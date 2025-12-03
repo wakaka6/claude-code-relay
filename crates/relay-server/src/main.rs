@@ -108,6 +108,7 @@ async fn main() {
 
     let claude_relay = Arc::new(ClaudeRelay::new());
     let gemini_relay = Arc::new(GeminiRelay::new());
+    let codex_relay = Arc::new(relay_codex::CodexRelay::new());
 
     let claude_state = Arc::new(ClaudeRouteState {
         scheduler: scheduler.clone(),
@@ -122,6 +123,11 @@ async fn main() {
     let openai_state = Arc::new(OpenAIRouteState {
         scheduler: scheduler.clone(),
         relay: claude_relay,
+    });
+
+    let codex_state = Arc::new(routes::CodexRouteState {
+        scheduler: scheduler.clone(),
+        relay: codex_relay,
     });
 
     let claude_routes = Router::new()
@@ -148,10 +154,16 @@ async fn main() {
         .route("/openai/v1/models", get(routes::openai::models))
         .with_state(openai_state);
 
+    let codex_routes = Router::new()
+        .route("/openai/v1/responses", post(routes::codex::responses))
+        .route("/v1/responses", post(routes::codex::responses))
+        .with_state(codex_state);
+
     let app = Router::new()
         .merge(claude_routes)
         .merge(gemini_routes)
         .merge(openai_routes)
+        .merge(codex_routes)
         .route("/health", get(health_check))
         .layer(axum_middleware::from_fn_with_state(
             api_key_validator,
