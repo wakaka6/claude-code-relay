@@ -13,6 +13,7 @@ relay-core = { workspace = true }
 relay-claude = { workspace = true }
 relay-gemini = { workspace = true }
 relay-openai = { workspace = true }
+relay-codex = { workspace = true }
 
 # Async runtime
 tokio.workspace = true

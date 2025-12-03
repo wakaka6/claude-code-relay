@@ -66,10 +66,15 @@ async fn main() {
         .iter()
         .filter(|a| a.platform() == Platform::Gemini)
         .count();
+    let codex_count = accounts
+        .iter()
+        .filter(|a| a.platform() == Platform::Codex)
+        .count();
 
     info!(
         claude_accounts = claude_count,
         gemini_accounts = gemini_count,
+        codex_accounts = codex_count,
         total_accounts = accounts.len(),
         "Loaded accounts"
     );
@@ -79,6 +84,9 @@ async fn main() {
     }
     if gemini_count == 0 {
         info!("No Gemini accounts configured - Gemini endpoints will return errors");
+    }
+    if codex_count == 0 {
+        info!("No Codex accounts configured - OpenAI Responses endpoints will return errors");
     }
 
     let scheduler = Arc::new(UnifiedScheduler::new(
@@ -212,6 +220,23 @@ fn build_accounts(config: &Config) -> Vec<Arc<dyn AccountProvider>> {
                     *priority,
                     *enabled,
                     refresh_token.clone(),
+                    api_url.clone(),
+                    proxy.clone(),
+                )),
+                AccountConfig::OpenaiResponses {
+                    id,
+                    name,
+                    priority,
+                    enabled,
+                    api_key,
+                    api_url,
+                    proxy,
+                } => Arc::new(relay_codex::CodexAccount::new(
+                    id.clone(),
+                    name.clone(),
+                    *priority,
+                    *enabled,
+                    api_key.clone(),
                     api_url.clone(),
                     proxy.clone(),
                 )),

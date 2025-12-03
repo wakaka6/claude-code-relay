@@ -94,6 +94,19 @@ pub enum AccountConfig {
         #[serde(default)]
         proxy: Option<ProxyConfig>,
     },
+    OpenaiResponses {
+        id: String,
+        name: String,
+        #[serde(default = "default_priority")]
+        priority: u32,
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        api_key: String,
+        #[serde(default)]
+        api_url: Option<String>,
+        #[serde(default)]
+        proxy: Option<ProxyConfig>,
+    },
 }
 
 fn default_priority() -> u32 {
@@ -156,6 +169,7 @@ impl Config {
                 AccountConfig::ClaudeOauth { id, .. } => id,
                 AccountConfig::ClaudeApi { id, .. } => id,
                 AccountConfig::Gemini { id, .. } => id,
+                AccountConfig::OpenaiResponses { id, .. } => id,
             };
             if !ids.insert(id.clone()) {
                 return Err(ConfigError::Validation(format!(
@@ -184,4 +198,51 @@ pub enum ConfigError {
     },
     #[error("Config validation error: {0}")]
     Validation(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_openai_responses_account_config_parsing() {
+        let config_content = r#"
+[server]
+host = "127.0.0.1"
+port = 3000
+database_path = "data/relay.db"
+
+[[accounts]]
+type = "openai-responses"
+id = "codex-1"
+name = "Codex Account"
+priority = 100
+enabled = true
+api_key = "sk-test-key"
+api_url = "https://api.openai.com/v1"
+"#;
+
+        let config: Config = toml::from_str(config_content).unwrap();
+        assert_eq!(config.accounts.len(), 1);
+
+        match &config.accounts[0] {
+            AccountConfig::OpenaiResponses {
+                id,
+                name,
+                priority,
+                enabled,
+                api_key,
+                api_url,
+                ..
+            } => {
+                assert_eq!(id, "codex-1");
+                assert_eq!(name, "Codex Account");
+                assert_eq!(*priority, 100);
+                assert!(*enabled);
+                assert_eq!(api_key, "sk-test-key");
+                assert_eq!(api_url.as_deref(), Some("https://api.openai.com/v1"));
+            }
+            _ => panic!("Expected OpenaiResponses account"),
+        }
+    }
 }
