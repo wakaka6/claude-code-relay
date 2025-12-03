@@ -4,6 +4,7 @@
 # 注意：你不需要配置所有类型的账户！
 # - 只使用 Claude：配置 claude-oauth 或 claude-api 账户
 # - 只使用 Gemini：配置 gemini 账户
+# - 只使用 Codex：配置 openai-responses 账户
 # - 同时使用：配置多种类型账户
 
 [server]
@@ -69,3 +70,17 @@ api_key = "sk-ant-api03-xxxx"
 # port = 8080
 # username = "user"
 # password = "pass"
+
+# ----- OpenAI Responses 账户 (for Codex CLI) -----
+# [[accounts]]
+# type = "openai-responses"
+# id = "codex-1"
+# name = "OpenAI Responses Account 1"
+# priority = 100
+# enabled = true
+# api_key = "sk-your-openai-api-key"
+# api_url = "https://api.openai.com/v1"  # Optional: custom API URL
+# [accounts.proxy]
+# type = "http"
+# host = "proxy.example.com"
+# port = 8080
