@@ -1,6 +1,6 @@
 # Claude Relay RS
 
-高性能 AI API 中转服务，使用 Rust 实现。支持 Claude、Gemini 多平台账户管理与智能调度。
+高性能 AI API 中转服务，使用 Rust 实现。支持 Claude、Gemini、OpenAI Responses (Codex) 多平台账户管理与智能调度。
 
 ## 功能特性
 
@@ -9,6 +9,7 @@
 - **Claude OAuth** - 支持 Claude Code CLI 的 OAuth 认证
 - **Claude API Key** - 支持标准 Anthropic API Key
 - **Gemini** - 支持 Google OAuth 认证
+- **OpenAI Responses** - 支持 OpenAI Responses API (Codex CLI)
 
 ### 核心功能
 
@@ -41,6 +42,7 @@ claude-relay-rs/
 │   ├── relay-core/      # 核心类型、Trait 定义
 │   ├── relay-claude/    # Claude 账户与转发实现
 │   ├── relay-gemini/    # Gemini 账户与转发实现
+│   ├── relay-codex/     # OpenAI Responses (Codex) 账户与转发实现
 │   ├── relay-openai/    # OpenAI 格式转换器
 │   └── relay-server/    # HTTP 服务器与路由
 ├── config.example.toml  # 配置文件示例
@@ -106,6 +108,7 @@ renewal_threshold_seconds = 300      # 续期阈值（剩余5分钟时续期）
 > **注意**: 你不需要配置所有类型的账户。只需配置你需要使用的平台即可。
 > - 只配置 Claude 账户：可以使用 Claude API 和 OpenAI 兼容端点
 > - 只配置 Gemini 账户：可以使用 Gemini API 端点
+> - 只配置 OpenAI Responses 账户：可以使用 OpenAI Responses 端点 (Codex CLI)
 > - 同时配置：可以使用所有端点
 >
 > 未配置账户的端点在被调用时会返回"无可用账户"错误。
@@ -147,6 +150,19 @@ priority = 100
 enabled = true
 refresh_token = "your-google-refresh-token"
 api_url = "https://cloudcode.googleapis.com"  # 可选：自定义 API URL
+```
+
+#### OpenAI Responses 账户 (Codex CLI)
+
+```toml
+[[accounts]]
+type = "openai-responses"
+id = "codex-1"
+name = "OpenAI Responses Account"
+priority = 100
+enabled = true
+api_key = "sk-your-openai-api-key"
+api_url = "https://api.openai.com/v1"  # 可选：自定义 API URL
 ```
 
 ### 代理配置
@@ -214,6 +230,13 @@ GET  /gemini/v1/models                              # 模型列表
 ```
 POST /openai/v1/chat/completions   # OpenAI 格式转 Claude
 GET  /openai/v1/models             # 模型列表
+```
+
+### OpenAI Responses (Codex)
+
+```
+POST /openai/v1/responses          # OpenAI Responses API
+POST /v1/responses                 # 别名路由
 ```
 
 ### 系统端点
@@ -299,9 +322,29 @@ curl -X POST "http://localhost:3000/gemini/v1/models/gemini-2.0-flash:generateCo
 
 ### OpenAI Codex CLI
 
-Codex CLI 使用 OpenAI 兼容格式，中转服务会自动转换为 Claude 请求。
+Codex CLI 支持两种模式：
+1. **OpenAI Responses API** (推荐) - 配置 `openai-responses` 账户，直接转发到 OpenAI
+2. **OpenAI 兼容模式** - 使用 Claude 账户，自动转换为 Claude 请求
 
-**环境变量配置：**
+**使用 OpenAI Responses API (推荐)：**
+
+需要配置 `openai-responses` 账户，然后设置环境变量：
+
+```bash
+# 设置 API 地址指向中转服务
+export OPENAI_API_BASE=http://localhost:3000/openai/v1
+export OPENAI_BASE_URL=http://localhost:3000/openai/v1
+
+# 设置中转服务的 API Key
+export OPENAI_API_KEY=your-relay-api-key
+
+# 启动 Codex
+codex
+```
+
+**使用 OpenAI 兼容模式：**
+
+使用 Claude 账户，中转服务会自动转换请求格式。
 
 ```bash
 # 设置 API 地址指向中转服务的 OpenAI 兼容端点
@@ -318,6 +361,15 @@ codex
 **验证连接：**
 
 ```bash
+# 测试 OpenAI Responses API
+curl -X POST http://localhost:3000/openai/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-relay-api-key" \
+  -d '{
+    "model": "gpt-4o",
+    "input": "Hello"
+  }'
+
 # 测试 OpenAI 兼容 API
 curl -X POST http://localhost:3000/openai/v1/chat/completions \
   -H "Content-Type: application/json" \
