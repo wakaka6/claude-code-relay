@@ -5,6 +5,7 @@ members = [
     "crates/relay-claude",
     "crates/relay-gemini",
     "crates/relay-openai",
+    "crates/relay-codex",
     "crates/relay-server",
 ]
 
@@ -62,3 +63,4 @@ relay-core = { path = "crates/relay-core" }
 relay-claude = { path = "crates/relay-claude" }
 relay-gemini = { path = "crates/relay-gemini" }
 relay-openai = { path = "crates/relay-openai" }
+relay-codex = { path = "crates/relay-codex" }
