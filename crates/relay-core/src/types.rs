@@ -7,6 +7,7 @@ pub enum Platform {
     Claude,
     Gemini,
     OpenAI,
+    Codex,
 }
 
 impl std::fmt::Display for Platform {
@@ -15,6 +16,7 @@ impl std::fmt::Display for Platform {
             Platform::Claude => write!(f, "claude"),
             Platform::Gemini => write!(f, "gemini"),
             Platform::OpenAI => write!(f, "openai"),
+            Platform::Codex => write!(f, "codex"),
         }
     }
 }
