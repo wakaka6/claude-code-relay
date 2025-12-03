@@ -9,7 +9,7 @@ use bytes::Bytes;
 use futures::stream::StreamExt;
 use relay_claude::ClaudeRelay;
 use relay_core::{Platform, Relay};
-use relay_openai::{ChatCompletionRequest, OpenAIToClaudeConverter};
+use relay_openai_to_anthropic::{ChatCompletionRequest, OpenAIToClaudeConverter};
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};

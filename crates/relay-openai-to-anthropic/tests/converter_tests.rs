@@ -1,5 +1,5 @@
-use relay_openai::types::{ChatCompletionRequest, ChatMessage, MessageContent};
-use relay_openai::OpenAIToClaudeConverter;
+use relay_openai_to_anthropic::types::{ChatCompletionRequest, ChatMessage, MessageContent};
+use relay_openai_to_anthropic::OpenAIToClaudeConverter;
 
 #[test]
 fn test_model_passthrough_no_mapping() {

@@ -12,7 +12,7 @@ path = "src/main.rs"
 relay-core = { workspace = true }
 relay-claude = { workspace = true }
 relay-gemini = { workspace = true }
-relay-openai = { workspace = true }
+relay-openai-to-anthropic = { workspace = true }
 relay-codex = { workspace = true }
 
 # Async runtime
