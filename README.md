@@ -39,14 +39,15 @@
 ```
 claude-relay-rs/
 ├── crates/
-│   ├── relay-core/      # 核心类型、Trait 定义
-│   ├── relay-claude/    # Claude 账户与转发实现
-│   ├── relay-gemini/    # Gemini 账户与转发实现
-│   ├── relay-codex/     # OpenAI Responses (Codex) 账户与转发实现
-│   ├── relay-openai/    # OpenAI 格式转换器
-│   └── relay-server/    # HTTP 服务器与路由
-├── config.example.toml  # 配置文件示例
-└── migrations/          # 数据库迁移文件
+│   ├── relay-core/                  # 核心类型、Trait 定义
+│   ├── relay-claude/                # Claude 账户与转发实现
+│   ├── relay-gemini/                # Gemini 账户与转发实现
+│   ├── relay-codex/                 # OpenAI Responses (Codex) 账户与转发实现
+│   ├── relay-openai-to-anthropic/   # OpenAI 格式转换器
+│   └── relay-server/                # HTTP 服务器与路由
+├── config.example.toml              # 配置文件示例
+├── relay-server.service             # Systemd 服务文件
+└── migrations/                      # 数据库迁移文件
 ```
 
 ## 快速开始
@@ -468,6 +469,43 @@ console.log(message.content);
 | `gpt-4o` | `gpt-4o`（Claude 后端处理） |
 | `claude-sonnet-4-20250514` | `claude-sonnet-4-20250514` |
 | 任意模型名 | 直接传递 |
+
+## 部署
+
+### Systemd 服务
+
+项目提供了 systemd 服务文件，可用于在 Linux 系统上部署为后台服务。
+
+**1. 创建用户和目录：**
+
+```bash
+sudo useradd -r -s /bin/false relay
+sudo mkdir -p /opt/relay-server/data
+sudo chown -R relay:relay /opt/relay-server
+```
+
+**2. 复制文件：**
+
+```bash
+sudo cp target/release/relay-server /opt/relay-server/
+sudo cp config.toml /opt/relay-server/
+sudo cp relay-server.service /etc/systemd/system/
+```
+
+**3. 启动服务：**
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable relay-server
+sudo systemctl start relay-server
+```
+
+**4. 查看状态和日志：**
+
+```bash
+sudo systemctl status relay-server
+sudo journalctl -u relay-server -f
+```
 
 ## 开发
 

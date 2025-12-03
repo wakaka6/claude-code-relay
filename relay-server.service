@@ -1,0 +1,24 @@
+[Unit]
+Description=Claude Relay Server
+Documentation=https://github.com/wakaka6/claude-code-relay
+After=network.target
+
+[Service]
+Type=simple
+User=relay
+Group=relay
+WorkingDirectory=/opt/relay-server
+ExecStart=/opt/relay-server/relay-server --config /opt/relay-server/config.toml
+Restart=on-failure
+RestartSec=5
+
+Environment=RUST_LOG=info
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/relay-server/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
