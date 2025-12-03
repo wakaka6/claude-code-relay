@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-12-04
+
 ### Added
 
 - 初始项目结构，支持 Claude Code 中继服务
@@ -18,3 +20,5 @@
 - `relay-server`: HTTP 服务器，提供统一的 API 入口
 - 多账户调度器，支持负载均衡和账户冷却
 - 跨平台自动发布 GitHub Actions workflow
+- Systemd 服务文件，支持 Linux 系统部署
+- 内容过滤错误处理
