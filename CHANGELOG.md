@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### Added
+
 - 初始项目结构，支持 Claude Code 中继服务
 - `relay-core`: 核心抽象层，定义 Relay、AccountProvider 等 trait
 - `relay-claude`: Claude API 中继实现，支持 OAuth 认证和流式响应
@@ -17,6 +18,3 @@
 - `relay-server`: HTTP 服务器，提供统一的 API 入口
 - 多账户调度器，支持负载均衡和账户冷却
 - 跨平台自动发布 GitHub Actions workflow
-
-### Changed
-- 将 `relay-openai` 重命名为 `relay-openai-to-anthropic`，更清晰地表达其功能

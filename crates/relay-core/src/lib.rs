@@ -5,7 +5,7 @@ mod scheduler;
 mod session;
 mod types;
 
-pub use error::{RelayError, Result};
+pub use error::{read_error_response_body, sanitize_response_body, RelayError, Result};
 pub use provider::{AccountProvider, Credentials};
 pub use relay::{BoxStream, Relay};
 pub use scheduler::Scheduler;

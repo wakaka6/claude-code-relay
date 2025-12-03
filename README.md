@@ -25,14 +25,14 @@
 
 支持的错误类型自动检测与处理：
 
-| 错误码 | 类型 | 处理方式 |
-|--------|------|----------|
-| 401 | 认证失败 | 标记账户不可用 |
-| 402 | 余额不足 | 切换到其他账户 |
-| 403 | 组织禁用 | 标记账户不可用 |
-| 429 | 速率限制 | 等待后重试 |
-| 429 | Opus 周限制 | 切换到其他账户 |
-| 529 | API 过载 | 暂时排除账户 |
+| 错误码 | 类型        | 处理方式       |
+| ------ | ----------- | -------------- |
+| 401    | 认证失败    | 标记账户不可用 |
+| 402    | 余额不足    | 切换到其他账户 |
+| 403    | 组织禁用    | 标记账户不可用 |
+| 429    | 速率限制    | 等待后重试     |
+| 429    | Opus 周限制 | 切换到其他账户 |
+| 529    | API 过载    | 暂时排除账户   |
 
 ## 项目结构
 
@@ -46,7 +46,7 @@ claude-relay-rs/
 │   ├── relay-openai-to-anthropic/   # OpenAI 格式转换器
 │   └── relay-server/                # HTTP 服务器与路由
 ├── config.example.toml              # 配置文件示例
-├── relay-server.service             # Systemd 服务文件
+├── cc-relay-server.service          # Systemd 服务文件
 └── migrations/                      # 数据库迁移文件
 ```
 
@@ -71,7 +71,7 @@ cp config.example.toml config.toml
 ### 运行
 
 ```bash
-./target/release/relay-server --config config.toml
+./target/release/cc-relay-server --config config.toml
 ```
 
 ## 配置说明
@@ -107,6 +107,7 @@ renewal_threshold_seconds = 300      # 续期阈值（剩余5分钟时续期）
 ### 账户配置
 
 > **注意**: 你不需要配置所有类型的账户。只需配置你需要使用的平台即可。
+>
 > - 只配置 Claude 账户：可以使用 Claude API 和 OpenAI 兼容端点
 > - 只配置 Gemini 账户：可以使用 Gemini API 端点
 > - 只配置 OpenAI Responses 账户：可以使用 OpenAI Responses 端点 (Codex CLI)
@@ -324,6 +325,7 @@ curl -X POST "http://localhost:3000/gemini/v1/models/gemini-2.0-flash:generateCo
 ### OpenAI Codex CLI
 
 Codex CLI 支持两种模式：
+
 1. **OpenAI Responses API** (推荐) - 配置 `openai-responses` 账户，直接转发到 OpenAI
 2. **OpenAI 兼容模式** - 使用 Claude 账户，自动转换为 Claude 请求
 
@@ -389,6 +391,7 @@ Cherry Studio 是一个支持多模型的桌面客户端。
 
 1. 打开设置 → 模型服务
 2. 添加自定义服务：
+
    - **服务名称**: Claude Relay
    - **API 地址**: `http://localhost:3000`
    - **API Key**: `your-relay-api-key`
@@ -403,6 +406,7 @@ Cherry Studio 是一个支持多模型的桌面客户端。
 **Cursor 配置：**
 
 在设置中配置：
+
 - **OpenAI API Base**: `http://localhost:3000/openai/v1`
 - **OpenAI API Key**: `your-relay-api-key`
 
@@ -445,17 +449,17 @@ print(message.content)
 **Node.js 示例：**
 
 ```javascript
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({
-  baseURL: 'http://localhost:3000',
-  apiKey: 'your-relay-api-key',
+  baseURL: "http://localhost:3000",
+  apiKey: "your-relay-api-key",
 });
 
 const message = await client.messages.create({
-  model: 'claude-sonnet-4-20250514',
+  model: "claude-sonnet-4-20250514",
   max_tokens: 1024,
-  messages: [{ role: 'user', content: 'Hello, Claude!' }],
+  messages: [{ role: "user", content: "Hello, Claude!" }],
 });
 console.log(message.content);
 ```
@@ -464,11 +468,11 @@ console.log(message.content);
 
 使用 OpenAI 兼容端点时，模型名称直接传递给 Claude API：
 
-| 请求模型 | 实际调用 |
-|----------|----------|
-| `gpt-4o` | `gpt-4o`（Claude 后端处理） |
-| `claude-sonnet-4-20250514` | `claude-sonnet-4-20250514` |
-| 任意模型名 | 直接传递 |
+| 请求模型                   | 实际调用                    |
+| -------------------------- | --------------------------- |
+| `gpt-4o`                   | `gpt-4o`（Claude 后端处理） |
+| `claude-sonnet-4-20250514` | `claude-sonnet-4-20250514`  |
+| 任意模型名                 | 直接传递                    |
 
 ## 部署
 
@@ -479,32 +483,32 @@ console.log(message.content);
 **1. 创建用户和目录：**
 
 ```bash
-sudo useradd -r -s /bin/false relay
-sudo mkdir -p /opt/relay-server/data
-sudo chown -R relay:relay /opt/relay-server
+sudo useradd -r -s /bin/false cc-relay
+sudo mkdir -p /opt/cc-relay/data
+sudo chown -R cc-relay:cc-relay /opt/cc-relay
 ```
 
 **2. 复制文件：**
 
 ```bash
-sudo cp target/release/relay-server /opt/relay-server/
-sudo cp config.toml /opt/relay-server/
-sudo cp relay-server.service /etc/systemd/system/
+sudo cp target/release/cc-relay-server /opt/cc-relay/
+sudo cp config.toml /opt/cc-relay/
+sudo cp cc-relay-server.service /etc/systemd/system/
 ```
 
 **3. 启动服务：**
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable relay-server
-sudo systemctl start relay-server
+sudo systemctl enable cc-relay-server
+sudo systemctl start cc-relay-server
 ```
 
 **4. 查看状态和日志：**
 
 ```bash
-sudo systemctl status relay-server
-sudo journalctl -u relay-server -f
+sudo systemctl status cc-relay-server
+sudo journalctl -u cc-relay-server -f
 ```
 
 ## 开发

@@ -45,6 +45,27 @@ pub enum RelayError {
     Internal(String),
 }
 
+pub fn sanitize_response_body(text: String) -> String {
+    if text
+        .chars()
+        .take(100)
+        .any(|c| c == '\u{FFFD}' || (c.is_control() && c != '\n' && c != '\r' && c != '\t'))
+    {
+        format!("[Binary response - {} bytes]", text.len())
+    } else {
+        text
+    }
+}
+
+pub async fn read_error_response_body(response: reqwest::Response) -> (u16, String) {
+    let status = response.status().as_u16();
+    let body = match response.text().await {
+        Ok(text) => sanitize_response_body(text),
+        Err(e) => format!("[Failed to read response body: {}]", e),
+    };
+    (status, body)
+}
+
 impl RelayError {
     pub fn from_response_body(status: u16, body: &str) -> Self {
         match status {

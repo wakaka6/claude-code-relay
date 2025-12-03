@@ -1,4 +1,4 @@
-use relay_core::{ProxyConfig, RelayError, Result, TokenInfo};
+use relay_core::{sanitize_response_body, ProxyConfig, RelayError, Result, TokenInfo};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
@@ -77,7 +77,10 @@ impl GeminiOAuth {
 
         let status = response.status();
         if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
+            let body = match response.text().await {
+                Ok(text) => sanitize_response_body(text),
+                Err(e) => format!("[Failed to read response body: {}]", e),
+            };
             error!("Gemini token refresh failed: HTTP {} - {}", status, body);
             return Err(RelayError::OAuth(format!("HTTP {}: {}", status, body)));
         }

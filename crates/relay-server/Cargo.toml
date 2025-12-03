@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "relay-server"
+name = "cc-relay-server"
 path = "src/main.rs"
 
 [dependencies]

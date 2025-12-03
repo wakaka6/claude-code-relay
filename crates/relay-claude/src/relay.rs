@@ -2,7 +2,10 @@ use async_stream::try_stream;
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::StreamExt;
-use relay_core::{AccountProvider, BoxStream, Credentials, ProxyConfig, Relay, RelayError, Result};
+use relay_core::{
+    read_error_response_body, AccountProvider, BoxStream, Credentials, ProxyConfig, Relay,
+    RelayError, Result,
+};
 use reqwest::Client;
 use tracing::{debug, info};
 
@@ -86,8 +89,7 @@ impl ClaudeRelay {
     }
 
     async fn handle_error_response(&self, response: reqwest::Response) -> RelayError {
-        let status = response.status().as_u16();
-        let body = response.text().await.unwrap_or_default();
+        let (status, body) = read_error_response_body(response).await;
         RelayError::from_response_body(status, &body)
     }
 

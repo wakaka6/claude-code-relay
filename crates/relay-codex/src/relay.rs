@@ -1,7 +1,9 @@
 use async_stream::try_stream;
 use bytes::Bytes;
 use futures::StreamExt;
-use relay_core::{AccountProvider, BoxStream, ProxyConfig, RelayError, Result};
+use relay_core::{
+    read_error_response_body, AccountProvider, BoxStream, ProxyConfig, RelayError, Result,
+};
 use reqwest::Client;
 use tracing::{debug, info};
 
@@ -82,8 +84,7 @@ impl CodexRelay {
             .await?;
 
         if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let body = response.text().await.unwrap_or_default();
+            let (status, body) = read_error_response_body(response).await;
             return Err(RelayError::from_response_body(status, &body));
         }
 
@@ -130,8 +131,7 @@ impl CodexRelay {
             .await?;
 
         if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let body = response.text().await.unwrap_or_default();
+            let (status, body) = read_error_response_body(response).await;
             return Err(RelayError::from_response_body(status, &body));
         }
 
