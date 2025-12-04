@@ -183,3 +183,195 @@ jobs:
           generate_release_notes: true
           files: |
             artifacts/*
+
+  update-aur:
+    needs: release
+    if: ${{ !contains(github.ref, '-') }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Wait for release tarball
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.version.outputs.version }}.tar.gz")
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
+              echo "Release tarball is available"
+              exit 0
+            fi
+            echo "Waiting for release tarball (HTTP $HTTP_CODE)... attempt $i/30"
+            sleep 10
+          done
+          echo "Release tarball not available after 5 minutes"
+          exit 1
+
+      - name: Get tarball SHA256
+        id: sha256
+        run: |
+          set -euo pipefail
+          SHA256=$(curl -fsSL --retry 3 --retry-delay 10 \
+            "https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.version.outputs.version }}.tar.gz" \
+            | sha256sum | cut -d' ' -f1)
+          if [[ ! "$SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+            echo "Invalid SHA256: $SHA256"
+            exit 1
+          fi
+          echo "SHA256: $SHA256"
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<'EOF'
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          EOF
+          sed -i 's/^          //' ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Clone AUR repo
+        run: git clone ssh://aur@aur.archlinux.org/claude-code-relay.git aur-repo
+
+      - name: Update PKGBUILD
+        working-directory: aur-repo
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+          NEW_SHA: ${{ steps.sha256.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          echo "Before update:"
+          grep -E "^(pkgver|sha256sums)" PKGBUILD | head -3
+
+          sed -i "s/^pkgver=.*/pkgver=${NEW_VERSION}/" PKGBUILD
+          sed -i "0,/'[a-f0-9]\{64\}'/s/'[a-f0-9]\{64\}'/'${NEW_SHA}'/" PKGBUILD
+
+          echo "After update:"
+          grep -E "^(pkgver|sha256sums)" PKGBUILD | head -3
+
+          if ! grep -q "${NEW_SHA}" PKGBUILD; then
+            echo "Error: SHA256 not updated in PKGBUILD"
+            exit 1
+          fi
+
+      - name: Generate .SRCINFO
+        working-directory: aur-repo
+        run: |
+          docker run --rm -v "$(pwd):/pkg" archlinux:base-devel bash -c "
+            useradd -m builder
+            chown -R builder:builder /pkg
+            cd /pkg
+            su builder -c 'makepkg --printsrcinfo > .SRCINFO'
+          "
+
+      - name: Commit and push
+        working-directory: aur-repo
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Update to v${{ steps.version.outputs.version }}"
+          git push
+
+  update-homebrew:
+    needs: release
+    if: ${{ !contains(github.ref, '-') }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Wait for release tarball
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.version.outputs.version }}.tar.gz")
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
+              echo "Release tarball is available"
+              exit 0
+            fi
+            echo "Waiting for release tarball (HTTP $HTTP_CODE)... attempt $i/30"
+            sleep 10
+          done
+          echo "Release tarball not available after 5 minutes"
+          exit 1
+
+      - name: Get tarball SHA256
+        id: sha256
+        run: |
+          set -euo pipefail
+          SHA256=$(curl -fsSL --retry 3 --retry-delay 10 \
+            "https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.version.outputs.version }}.tar.gz" \
+            | sha256sum | cut -d' ' -f1)
+          if [[ ! "$SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+            echo "Invalid SHA256: $SHA256"
+            exit 1
+          fi
+          echo "SHA256: $SHA256"
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Clone homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          git clone https://github.com/wakaka6/homebrew-tap.git
+          cd homebrew-tap
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/wakaka6/homebrew-tap.git"
+
+      - name: Update Formula
+        working-directory: homebrew-tap
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+          NEW_SHA: ${{ steps.sha256.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          FORMULA="Formula/claude-code-relay.rb"
+
+          echo "Before update:"
+          grep -E "^  (url|sha256)" "$FORMULA"
+
+          sed -i "s|url \"https://github.com/.*/archive/refs/tags/v[^\"]*\.tar\.gz\"|url \"https://github.com/${{ github.repository }}/archive/refs/tags/v${NEW_VERSION}.tar.gz\"|" "$FORMULA"
+          sed -i "s/sha256 \"[a-f0-9]\{64\}\"/sha256 \"${NEW_SHA}\"/" "$FORMULA"
+
+          echo "After update:"
+          grep -E "^  (url|sha256)" "$FORMULA"
+
+          if ! grep -q "${NEW_SHA}" "$FORMULA"; then
+            echo "Error: SHA256 not updated in Formula"
+            exit 1
+          fi
+
+      - name: Commit and push
+        working-directory: homebrew-tap
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add Formula/claude-code-relay.rb
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "claude-code-relay: update to v${{ steps.version.outputs.version }}"
+          git push

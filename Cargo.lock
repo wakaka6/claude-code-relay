@@ -1623,7 +1623,7 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "relay-claude"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -1642,7 +1642,7 @@ dependencies = [
 
 [[package]]
 name = "relay-codex"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -1660,7 +1660,7 @@ dependencies = [
 
 [[package]]
 name = "relay-core"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1678,7 +1678,7 @@ dependencies = [
 
 [[package]]
 name = "relay-gemini"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -1697,7 +1697,7 @@ dependencies = [
 
 [[package]]
 name = "relay-openai-to-anthropic"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "chrono",
  "relay-claude",
@@ -1710,7 +1710,7 @@ dependencies = [
 
 [[package]]
 name = "relay-server"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "async-trait",
