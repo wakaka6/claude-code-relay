@@ -10,6 +10,14 @@
 ### Added
 
 - 新增 `unavailable_cooldown_seconds` 配置选项，可自定义账户失效后的冷却时间（默认 3600 秒）
+- 粘性会话持久化到 SQLite 数据库，服务重启后会话不丢失
+- 智能续期机制：仅在剩余时间低于阈值时才续期会话
+- 预留用量统计功能（`record_usage`、`get_usage_by_account`）
+
+### Changed
+
+- 调度器方法重构为异步（`select_account`、`select_account_excluding`）
+- 粘性会话从内存 HashMap 迁移到 SQLite 持久化存储
 
 ## [0.1.0] - 2025-12-04
 

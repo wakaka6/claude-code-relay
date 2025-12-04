@@ -48,7 +48,8 @@ pub async fn generate_content(
     let body_value = serde_json::to_value(&body).unwrap_or_default();
     let account = state
         .scheduler
-        .select_account(Platform::Gemini, &body_value)?;
+        .select_account(Platform::Gemini, &body_value)
+        .await?;
 
     let request = GeminiRequest {
         model,

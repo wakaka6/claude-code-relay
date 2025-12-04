@@ -48,7 +48,7 @@ async fn main() {
 
     info!(config_path = %args.config, "Starting Claude Relay Service");
 
-    let _pool = match db::init_database(&config.server.database_path).await {
+    let pool = match db::init_database(&config.server.database_path).await {
         Ok(p) => p,
         Err(e) => {
             error!(error = %e, "Failed to initialize database");
@@ -94,14 +94,19 @@ async fn main() {
         config.session.sticky_ttl_seconds,
         config.session.renewal_threshold_seconds,
         config.session.unavailable_cooldown_seconds,
+        pool.clone(),
     ));
 
     let scheduler_cleanup = scheduler.clone();
+    let cleanup_pool = pool.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
         loop {
             interval.tick().await;
-            scheduler_cleanup.cleanup_expired_sessions();
+            scheduler_cleanup.cleanup_expired_cooldowns();
+            if let Err(e) = db::cleanup_expired_sessions(&cleanup_pool).await {
+                error!(error = %e, "Failed to cleanup expired sessions");
+            }
         }
     });
 

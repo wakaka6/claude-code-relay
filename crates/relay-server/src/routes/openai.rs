@@ -36,7 +36,8 @@ pub async fn chat_completions(
 
     let account = state
         .scheduler
-        .select_account(Platform::Claude, &body_value)?;
+        .select_account(Platform::Claude, &body_value)
+        .await?;
 
     if is_stream {
         let stream = state

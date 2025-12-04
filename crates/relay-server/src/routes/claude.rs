@@ -115,6 +115,7 @@ pub async fn messages(
         let account = match state
             .scheduler
             .select_account_excluding(Platform::Claude, &body_value, &excluded_accounts)
+            .await
         {
             Ok(acc) => acc,
             Err(e) => {

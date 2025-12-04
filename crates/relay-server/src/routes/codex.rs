@@ -72,6 +72,7 @@ pub async fn responses(
         let account = match state
             .scheduler
             .select_account_excluding(Platform::Codex, &body_value, &excluded_accounts)
+            .await
         {
             Ok(acc) => acc,
             Err(e) => {
