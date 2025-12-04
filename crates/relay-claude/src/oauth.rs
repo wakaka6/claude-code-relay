@@ -3,21 +3,17 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
-pub struct ClaudeOAuth {
-    client: Client,
-}
+pub struct ClaudeOAuth;
 
 impl ClaudeOAuth {
     const TOKEN_URL: &'static str = "https://console.anthropic.com/v1/oauth/token";
     const CLIENT_ID: &'static str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 
     pub fn new() -> Self {
-        Self {
-            client: Client::new(),
-        }
+        Self
     }
 
-    fn build_client(&self, proxy_config: Option<&ProxyConfig>) -> Result<Client> {
+    fn build_client(proxy_config: Option<&ProxyConfig>) -> Result<Client> {
         let mut builder = Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .user_agent("claude-cli/1.0.56 (external, cli)");
@@ -40,7 +36,7 @@ impl ClaudeOAuth {
         refresh_token: &str,
         proxy_config: Option<&ProxyConfig>,
     ) -> Result<TokenInfo> {
-        let client = self.build_client(proxy_config)?;
+        let client = Self::build_client(proxy_config)?;
 
         debug!("Refreshing Claude OAuth token");
 
@@ -101,8 +97,8 @@ struct TokenRequest {
 struct TokenResponse {
     access_token: String,
     expires_in: u64,
-    #[serde(default)]
-    token_type: String,
-    #[serde(default)]
-    scope: Option<String>,
+    #[serde(default, rename = "token_type")]
+    _token_type: String,
+    #[serde(default, rename = "scope")]
+    _scope: Option<String>,
 }

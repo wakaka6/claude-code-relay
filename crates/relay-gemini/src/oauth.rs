@@ -3,9 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
-pub struct GeminiOAuth {
-    client: Client,
-}
+pub struct GeminiOAuth;
 
 impl GeminiOAuth {
     const TOKEN_URL: &'static str = "https://oauth2.googleapis.com/token";
@@ -31,12 +29,10 @@ impl GeminiOAuth {
     }
 
     pub fn new() -> Self {
-        Self {
-            client: Client::new(),
-        }
+        Self
     }
 
-    fn build_client(&self, proxy_config: Option<&ProxyConfig>) -> Result<Client> {
+    fn build_client(proxy_config: Option<&ProxyConfig>) -> Result<Client> {
         let mut builder = Client::builder()
             .timeout(std::time::Duration::from_secs(30));
 
@@ -58,7 +54,7 @@ impl GeminiOAuth {
         refresh_token: &str,
         proxy_config: Option<&ProxyConfig>,
     ) -> Result<TokenInfo> {
-        let client = self.build_client(proxy_config)?;
+        let client = Self::build_client(proxy_config)?;
 
         debug!("Refreshing Gemini OAuth token");
 
@@ -119,8 +115,8 @@ struct TokenRefreshParams {
 struct TokenResponse {
     access_token: String,
     expires_in: u64,
-    #[serde(default)]
-    token_type: String,
-    #[serde(default)]
-    scope: Option<String>,
+    #[serde(default, rename = "token_type")]
+    _token_type: String,
+    #[serde(default, rename = "scope")]
+    _scope: Option<String>,
 }
