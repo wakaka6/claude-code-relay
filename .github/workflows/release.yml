@@ -14,29 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      version: ${{ steps.get_version.outputs.version }}
-    steps:
-      - name: Get version from tag
-        id: get_version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: ${{ contains(github.ref, '-') }}
-
   build:
-    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -85,8 +63,7 @@ jobs:
               sudo apt-get install -y gcc-aarch64-linux-gnu
               ;;
             aarch64-unknown-linux-musl)
-              sudo apt-get install -y musl-tools gcc-aarch64-linux-gnu
-              # Install aarch64 musl cross compiler
+              # Install aarch64 musl cross compiler from musl.cc
               wget -q https://musl.cc/aarch64-linux-musl-cross.tgz
               tar -xzf aarch64-linux-musl-cross.tgz
               echo "$PWD/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
@@ -99,45 +76,55 @@ jobs:
           mkdir -p .cargo
           case "${{ matrix.target }}" in
             aarch64-unknown-linux-gnu)
-              echo '[target.aarch64-unknown-linux-gnu]' >> .cargo/config.toml
-              echo 'linker = "aarch64-linux-gnu-gcc"' >> .cargo/config.toml
+              cat >> .cargo/config.toml << 'EOF'
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
               ;;
             aarch64-unknown-linux-musl)
-              echo '[target.aarch64-unknown-linux-musl]' >> .cargo/config.toml
-              echo 'linker = "aarch64-linux-musl-gcc"' >> .cargo/config.toml
+              cat >> .cargo/config.toml << 'EOF'
+          [target.aarch64-unknown-linux-musl]
+          linker = "aarch64-linux-musl-gcc"
+          EOF
               ;;
           esac
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }} -p relay-server
 
+      - name: Get version
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
       - name: Package (Unix)
         if: matrix.os != 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
-          tar -czvf ../../../${{ env.BINARY_NAME }}-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
+          tar -czvf ../../../${{ env.BINARY_NAME }}-${{ steps.version.outputs.version }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
 
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           cd target/${{ matrix.target }}/release
-          Compress-Archive -Path ${{ env.BINARY_NAME }}.exe -DestinationPath ../../../${{ env.BINARY_NAME }}-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.zip
+          Compress-Archive -Path ${{ env.BINARY_NAME }}.exe -DestinationPath ../../../${{ env.BINARY_NAME }}-${{ steps.version.outputs.version }}-${{ matrix.target }}.zip
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./${{ env.BINARY_NAME }}-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
-          asset_name: ${{ env.BINARY_NAME }}-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
-          asset_content_type: ${{ matrix.archive == 'zip' && 'application/zip' || 'application/gzip' }}
+          name: ${{ env.BINARY_NAME }}-${{ matrix.target }}
+          path: ${{ env.BINARY_NAME }}-${{ steps.version.outputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
+          if-no-files-found: error
 
-  checksums:
-    needs: [create-release, build]
+  release:
+    needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -145,17 +132,17 @@ jobs:
           merge-multiple: true
 
       - name: Generate checksums
+        working-directory: artifacts
         run: |
-          cd artifacts 2>/dev/null || exit 0
-          sha256sum * > checksums-sha256.txt || true
+          sha256sum * > checksums-sha256.txt
+          cat checksums-sha256.txt
 
-      - name: Upload checksums
-        if: hashFiles('artifacts/checksums-sha256.txt') != ''
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: artifacts/checksums-sha256.txt
-          asset_name: checksums-sha256.txt
-          asset_content_type: text/plain
+          name: Release v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
+          generate_release_notes: true
+          files: |
+            artifacts/*

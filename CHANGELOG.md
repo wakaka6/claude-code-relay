@@ -21,6 +21,9 @@
 
 ### Fixed
 
+- 修复 GitHub Actions release workflow 无法正确生成 checksums 的问题
+  - 替换废弃的 `actions/create-release` 和 `upload-release-asset` 为 `softprops/action-gh-release`
+  - 添加 artifact 上传步骤，确保 checksums 生成正常工作
 - 修复 Claude API 响应中未知 content 类型导致 400 错误的问题
   - `MessagesResponse.content` 从 `Vec<ContentBlock>` 改为 `serde_json::Value` 实现完全透传
   - 解决了 `thinking`、`tool_result` 等新类型被序列化为 `{"type": "Unknown"}` 的问题
