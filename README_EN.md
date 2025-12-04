@@ -7,37 +7,37 @@
 [![Docker](https://img.shields.io/docker/v/wakaka6/claude-code-relay?label=Docker)](https://hub.docker.com/r/wakaka6/claude-code-relay)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/wakaka6/claude-code-relay/pulls)
 
-**[English](./README_EN.md) | 简体中文**
+**English | [简体中文](./README.md)**
 
-高性能 AI API 中转服务，使用 Rust 实现。支持 Claude、Gemini、OpenAI Responses (Codex) 多平台账户管理与智能调度。
+A high-performance AI API relay service built with Rust. Supports multi-platform account management and intelligent scheduling for Claude, Gemini, and OpenAI Responses (Codex).
 
-## ✨ 功能特性
+## ✨ Features
 
-### 多平台支持
+### Multi-Platform Support
 
-| 平台 | 认证方式 | 说明 |
-|------|----------|------|
-| **Claude** | OAuth / API Key | 支持 Claude Code CLI 的 OAuth 认证和标准 API Key |
-| **Gemini** | Google OAuth | 支持 Google OAuth 认证 |
-| **OpenAI Responses** | API Key | 支持 OpenAI Responses API (Codex CLI) |
+| Platform | Authentication | Description |
+|----------|----------------|-------------|
+| **Claude** | OAuth / API Key | Supports Claude Code CLI OAuth and standard API Key |
+| **Gemini** | Google OAuth | Supports Google OAuth authentication |
+| **OpenAI Responses** | API Key | Supports OpenAI Responses API (Codex CLI) |
 
-### 核心功能
+### Core Features
 
-- 🔄 **智能账户调度** - 基于优先级的多账户自动切换
-- 🔗 **粘性会话** - 同一会话绑定同一账户，确保上下文连续性
-- 🔑 **自动 Token 刷新** - OAuth Token 自动续期，10秒提前刷新策略
-- 🌐 **代理支持** - 每个账户支持独立的 SOCKS5/HTTP 代理配置
-- 🔧 **自定义 API URL** - 支持配置自定义 API 端点（镜像站/代理）
-- 📡 **流式响应** - 完整的 SSE 流式传输支持
-- ⚡ **错误故障转移** - 智能错误检测与账户自动切换
+- 🔄 **Smart Account Scheduling** - Priority-based automatic account switching
+- 🔗 **Sticky Sessions** - Same session bound to same account for context continuity
+- 🔑 **Auto Token Refresh** - OAuth token auto-renewal with 10-second advance refresh
+- 🌐 **Proxy Support** - Independent SOCKS5/HTTP proxy per account
+- 🔧 **Custom API URL** - Configurable API endpoints (mirrors/proxies)
+- 📡 **Streaming Response** - Full SSE streaming support
+- ⚡ **Error Failover** - Intelligent error detection and automatic account switching
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 部署服务
+### 1. Deploy the Service
 
-选择以下任一方式：
+Choose one of the following methods:
 
-**Docker（推荐）：**
+**Docker (Recommended):**
 ```bash
 mkdir cc-relay && cd cc-relay
 curl -O https://raw.githubusercontent.com/wakaka6/claude-code-relay/main/config.example.toml
@@ -45,20 +45,20 @@ curl -O https://raw.githubusercontent.com/wakaka6/claude-code-relay/main/docker-
 mv config.example.toml config.toml
 ```
 
-**Arch Linux：**
+**Arch Linux:**
 ```bash
 yay -S claude-code-relay
 ```
 
-**macOS：**
+**macOS:**
 ```bash
 brew tap wakaka6/tap
 brew install claude-code-relay
 ```
 
-### 2. 配置账户
+### 2. Configure Accounts
 
-编辑配置文件，添加你的账户信息：
+Edit the config file to add your account information:
 
 ```bash
 # Docker
@@ -71,7 +71,7 @@ sudo vim /etc/cc-relay-server/config.toml
 vim $(brew --prefix)/etc/cc-relay-server/config.toml
 ```
 
-最简配置示例（Claude API Key）：
+Minimal configuration example (Claude API Key):
 ```toml
 [server]
 host = "127.0.0.1"
@@ -86,7 +86,7 @@ enabled = true
 api_key = "sk-ant-api03-xxxx"
 ```
 
-### 3. 启动服务
+### 3. Start the Service
 
 ```bash
 # Docker
@@ -99,15 +99,15 @@ sudo systemctl enable --now cc-relay-server
 brew services start claude-code-relay
 ```
 
-### 4. 配置客户端
+### 4. Configure Your Client
 
 ```bash
 export ANTHROPIC_BASE_URL=http://localhost:3000
-export ANTHROPIC_API_KEY=any-key  # 如果未配置 api_keys 认证，可以是任意值
+export ANTHROPIC_API_KEY=any-key  # Can be any value if api_keys auth is not configured
 claude
 ```
 
-## 📥 安装方式
+## 📥 Installation
 
 ### Docker
 
@@ -124,7 +124,7 @@ docker run -d \
 
 ```bash
 yay -S claude-code-relay
-# 或
+# or
 paru -S claude-code-relay
 ```
 
@@ -135,13 +135,13 @@ brew tap wakaka6/tap
 brew install claude-code-relay
 ```
 
-### 二进制下载
+### Binary Download
 
-从 [Releases](https://github.com/wakaka6/claude-code-relay/releases) 下载对应平台的二进制文件。
+Download the binary for your platform from [Releases](https://github.com/wakaka6/claude-code-relay/releases).
 
-## ⚙️ 配置说明
+## ⚙️ Configuration
 
-### 服务器配置
+### Server Configuration
 
 ```toml
 [server]
@@ -151,31 +151,31 @@ database_path = "data/relay.db"
 log_level = "info"  # trace, debug, info, warn, error
 ```
 
-### API Key 认证
+### API Key Authentication
 
 ```toml
-# 留空则禁用认证，任意 key 都可访问
+# Leave empty to disable auth, any key will work
 api_keys = [
     "your-api-key-1",
     "your-api-key-2",
 ]
 ```
 
-### 会话配置
+### Session Configuration
 
 ```toml
 [session]
-sticky_ttl_seconds = 3600            # 会话 TTL（默认 1 小时）
-renewal_threshold_seconds = 300       # 续期阈值（剩余 5 分钟时续期）
-unavailable_cooldown_seconds = 3600   # 账户不可用冷却时间
+sticky_ttl_seconds = 3600            # Session TTL (default: 1 hour)
+renewal_threshold_seconds = 300       # Renew when less than 5 minutes remaining
+unavailable_cooldown_seconds = 3600   # Account unavailable cooldown
 ```
 
-### 账户配置
+### Account Configuration
 
-> 只需配置你需要使用的平台即可。
+> Only configure the platforms you need.
 
 <details>
-<summary><b>Claude OAuth 账户</b></summary>
+<summary><b>Claude OAuth Account</b></summary>
 
 ```toml
 [[accounts]]
@@ -185,12 +185,12 @@ name = "Claude OAuth Account"
 priority = 100
 enabled = true
 refresh_token = "your-refresh-token"
-api_url = "https://api.anthropic.com"  # 可选
+api_url = "https://api.anthropic.com"  # Optional
 ```
 </details>
 
 <details>
-<summary><b>Claude API Key 账户</b></summary>
+<summary><b>Claude API Key Account</b></summary>
 
 ```toml
 [[accounts]]
@@ -204,7 +204,7 @@ api_key = "sk-ant-api03-xxxx"
 </details>
 
 <details>
-<summary><b>Gemini 账户</b></summary>
+<summary><b>Gemini Account</b></summary>
 
 ```toml
 [[accounts]]
@@ -218,7 +218,7 @@ refresh_token = "your-google-refresh-token"
 </details>
 
 <details>
-<summary><b>OpenAI Responses 账户</b></summary>
+<summary><b>OpenAI Responses Account</b></summary>
 
 ```toml
 [[accounts]]
@@ -232,31 +232,31 @@ api_key = "sk-your-openai-api-key"
 </details>
 
 <details>
-<summary><b>代理配置</b></summary>
+<summary><b>Proxy Configuration</b></summary>
 
 ```toml
 [accounts.proxy]
-type = "socks5"  # 或 "http"
+type = "socks5"  # or "http"
 host = "127.0.0.1"
 port = 1080
-username = "user"  # 可选
-password = "pass"  # 可选
+username = "user"  # Optional
+password = "pass"  # Optional
 ```
 </details>
 
-## 🔌 API 端点
+## 🔌 API Endpoints
 
-| 服务 | 端点 | 说明 |
-|------|------|------|
+| Service | Endpoint | Description |
+|---------|----------|-------------|
 | **Claude** | `POST /api/v1/messages` | Claude Messages API |
-| | `POST /claude/v1/messages` | 别名路由 |
-| **Gemini** | `POST /gemini/v1/models/:model:generateContent` | 标准生成 |
-| | `POST /gemini/v1/models/:model:streamGenerateContent` | 流式生成 |
-| **OpenAI 兼容** | `POST /openai/v1/chat/completions` | 转换为 Claude |
+| | `POST /claude/v1/messages` | Alias route |
+| **Gemini** | `POST /gemini/v1/models/:model:generateContent` | Standard generation |
+| | `POST /gemini/v1/models/:model:streamGenerateContent` | Streaming generation |
+| **OpenAI Compatible** | `POST /openai/v1/chat/completions` | Convert to Claude |
 | **OpenAI Responses** | `POST /openai/v1/responses` | Responses API |
-| **系统** | `GET /health` | 健康检查 |
+| **System** | `GET /health` | Health check |
 
-## 📱 客户端配置
+## 📱 Client Configuration
 
 <details>
 <summary><b>Claude Code CLI</b></summary>
@@ -304,9 +304,9 @@ const client = new Anthropic({ baseURL: "http://localhost:3000", apiKey: "your-k
 ```
 </details>
 
-## 🛠️ 开发
+## 🛠️ Development
 
-### 从源码构建
+### Build from Source
 
 ```bash
 git clone https://github.com/wakaka6/claude-code-relay.git
@@ -314,15 +314,15 @@ cd claude-code-relay
 cargo build --release
 ```
 
-### 本地运行
+### Local Run
 
 ```bash
 cp config.example.toml config.toml
-# 编辑 config.toml
+# Edit config.toml
 ./target/release/cc-relay-server --config config.toml
 ```
 
-### 测试与检查
+### Test & Lint
 
 ```bash
 cargo test
@@ -330,9 +330,9 @@ cargo clippy
 cargo fmt
 ```
 
-## 🤝 贡献
+## 🤝 Contributing
 
-欢迎提交 Issue 和 Pull Request！
+Contributions are welcome! Feel free to submit Issues and Pull Requests.
 
 ## 📄 License
 

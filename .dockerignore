@@ -1,0 +1,12 @@
+target/
+.git/
+.github/
+.gitignore
+*.md
+LICENSE
+Makefile
+.vscode/
+.idea/
+*.log
+data/
+config.toml

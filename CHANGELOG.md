@@ -7,6 +7,32 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-12-05
+
+### Added
+
+- Docker 支持
+  - 多阶段构建 Dockerfile，基于 Alpine，支持 amd64/arm64
+  - docker-compose.yml 配置文件
+  - 内置健康检查（HEALTHCHECK）
+  - OCI 镜像标签
+- 包管理器发布
+  - AUR 包：`yay -S claude-code-relay`
+  - Homebrew tap：`brew install wakaka6/tap/claude-code-relay`
+- GitHub Actions 自动构建并推送 Docker 镜像到 Docker Hub 和 GHCR
+- LICENSE 文件（MIT）
+
+### Changed
+
+- 重构 README 文档结构
+  - 新增"快速开始"4 步上手指南（用户导向）
+  - "开发"部分独立（开发者导向）
+  - 删除冗余的"部署"章节，与安装部分合并
+- AUR 包配置优化
+  - 配置文件使用绝对路径 `/var/lib/cc-relay/relay.db`
+  - 配置文件权限 640，属组 cc-relay
+  - 添加 sysusers/tmpfiles 配置
+
 ## [0.2.0] - 2025-12-04
 
 ### Added
