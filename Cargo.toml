@@ -26,12 +26,13 @@ futures = "0.3"
 # HTTP 框架和客户端
 axum = { version = "0.7", features = ["macros"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
-reqwest = { version = "0.12", features = ["json", "stream", "socks", "gzip", "deflate"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "socks", "gzip", "deflate", "rustls-tls"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "timeout"] }
 
 # 数据库
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+libsqlite3-sys = { version = "0.31", features = ["bundled"] }
 
 # 序列化
 serde = { version = "1", features = ["derive"] }

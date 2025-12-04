@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-12-04
+
 ### Added
 
 - 新增 `unavailable_cooldown_seconds` 配置选项，可自定义账户失效后的冷却时间（默认 3600 秒）

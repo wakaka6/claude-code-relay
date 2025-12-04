@@ -22,24 +22,31 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             archive: tar.gz
+            use_cross: false
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             archive: tar.gz
+            use_cross: true
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             archive: tar.gz
+            use_cross: true
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             archive: tar.gz
+            use_cross: true
           - target: x86_64-apple-darwin
             os: macos-latest
             archive: tar.gz
+            use_cross: false
           - target: aarch64-apple-darwin
             os: macos-latest
             archive: tar.gz
+            use_cross: false
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             archive: zip
+            use_cross: false
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -51,45 +58,20 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install cross-compilation tools (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          case "${{ matrix.target }}" in
-            x86_64-unknown-linux-musl)
-              sudo apt-get install -y musl-tools
-              ;;
-            aarch64-unknown-linux-gnu)
-              sudo apt-get install -y gcc-aarch64-linux-gnu
-              ;;
-            aarch64-unknown-linux-musl)
-              # Install aarch64 musl cross compiler from musl.cc
-              wget -q https://musl.cc/aarch64-linux-musl-cross.tgz
-              tar -xzf aarch64-linux-musl-cross.tgz
-              echo "$PWD/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
-              ;;
-          esac
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
-      - name: Configure cargo for cross-compilation
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          mkdir -p .cargo
-          case "${{ matrix.target }}" in
-            aarch64-unknown-linux-gnu)
-              cat >> .cargo/config.toml << 'EOF'
-          [target.aarch64-unknown-linux-gnu]
-          linker = "aarch64-linux-gnu-gcc"
-          EOF
-              ;;
-            aarch64-unknown-linux-musl)
-              cat >> .cargo/config.toml << 'EOF'
-          [target.aarch64-unknown-linux-musl]
-          linker = "aarch64-linux-musl-gcc"
-          EOF
-              ;;
-          esac
+      - name: Install musl-tools (x86_64-musl without cross)
+        if: matrix.target == 'x86_64-unknown-linux-musl' && !matrix.use_cross
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
 
-      - name: Build
+      - name: Build with cross
+        if: matrix.use_cross
+        run: cross build --release --target ${{ matrix.target }} -p relay-server
+
+      - name: Build with cargo
+        if: ${{ !matrix.use_cross }}
         run: cargo build --release --target ${{ matrix.target }} -p relay-server
 
       - name: Get version
