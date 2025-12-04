@@ -123,6 +123,8 @@ pub struct SessionConfig {
     pub sticky_ttl_seconds: u64,
     #[serde(default = "default_renewal_threshold")]
     pub renewal_threshold_seconds: u64,
+    #[serde(default = "default_unavailable_cooldown")]
+    pub unavailable_cooldown_seconds: u64,
 }
 
 fn default_sticky_ttl() -> u64 {
@@ -133,11 +135,16 @@ fn default_renewal_threshold() -> u64 {
     300
 }
 
+fn default_unavailable_cooldown() -> u64 {
+    3600
+}
+
 impl Default for SessionConfig {
     fn default() -> Self {
         Self {
             sticky_ttl_seconds: default_sticky_ttl(),
             renewal_threshold_seconds: default_renewal_threshold(),
+            unavailable_cooldown_seconds: default_unavailable_cooldown(),
         }
     }
 }
@@ -244,5 +251,75 @@ api_url = "https://api.openai.com/v1"
             }
             _ => panic!("Expected OpenaiResponses account"),
         }
+    }
+
+    #[test]
+    fn test_session_config_default_values() {
+        let config_content = r#"
+[server]
+host = "127.0.0.1"
+port = 3000
+
+[[accounts]]
+type = "claude-api"
+id = "test-1"
+name = "Test Account"
+api_key = "sk-test"
+"#;
+
+        let config: Config = toml::from_str(config_content).unwrap();
+        assert_eq!(config.session.sticky_ttl_seconds, 3600);
+        assert_eq!(config.session.renewal_threshold_seconds, 300);
+        assert_eq!(config.session.unavailable_cooldown_seconds, 3600);
+    }
+
+    #[test]
+    fn test_session_config_custom_values() {
+        let config_content = r#"
+[server]
+host = "127.0.0.1"
+port = 3000
+
+[session]
+sticky_ttl_seconds = 7200
+renewal_threshold_seconds = 600
+unavailable_cooldown_seconds = 1800
+
+[[accounts]]
+type = "claude-api"
+id = "test-1"
+name = "Test Account"
+api_key = "sk-test"
+"#;
+
+        let config: Config = toml::from_str(config_content).unwrap();
+        assert_eq!(config.session.sticky_ttl_seconds, 7200);
+        assert_eq!(config.session.renewal_threshold_seconds, 600);
+        assert_eq!(config.session.unavailable_cooldown_seconds, 1800);
+    }
+
+    #[test]
+    fn test_session_config_partial_override() {
+        let config_content = r#"
+[server]
+host = "127.0.0.1"
+port = 3000
+
+[session]
+unavailable_cooldown_seconds = 300
+
+[[accounts]]
+type = "claude-api"
+id = "test-1"
+name = "Test Account"
+api_key = "sk-test"
+"#;
+
+        let config: Config = toml::from_str(config_content).unwrap();
+        // Default values for unspecified fields
+        assert_eq!(config.session.sticky_ttl_seconds, 3600);
+        assert_eq!(config.session.renewal_threshold_seconds, 300);
+        // Custom value
+        assert_eq!(config.session.unavailable_cooldown_seconds, 300);
     }
 }

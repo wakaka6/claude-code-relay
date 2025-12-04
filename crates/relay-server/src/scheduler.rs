@@ -27,6 +27,7 @@ pub struct UnifiedScheduler {
     usage: RwLock<HashMap<String, AccountUsage>>,
     sticky_ttl: Duration,
     renewal_threshold: Duration,
+    unavailable_cooldown: Duration,
 }
 
 impl UnifiedScheduler {
@@ -34,6 +35,7 @@ impl UnifiedScheduler {
         accounts: Vec<Arc<dyn AccountProvider>>,
         sticky_ttl_secs: u64,
         renewal_threshold_secs: u64,
+        unavailable_cooldown_secs: u64,
     ) -> Self {
         Self {
             accounts,
@@ -42,6 +44,7 @@ impl UnifiedScheduler {
             usage: RwLock::new(HashMap::new()),
             sticky_ttl: Duration::from_secs(sticky_ttl_secs),
             renewal_threshold: Duration::from_secs(renewal_threshold_secs),
+            unavailable_cooldown: Duration::from_secs(unavailable_cooldown_secs),
         }
     }
 
@@ -81,7 +84,7 @@ impl UnifiedScheduler {
 
     pub fn mark_account_unavailable(&self, account_id: &str, reason: &str) {
         let mut cooldowns = self.cooldowns.write();
-        let until = Instant::now() + Duration::from_secs(3600);
+        let until = Instant::now() + self.unavailable_cooldown;
         cooldowns.insert(
             account_id.to_string(),
             AccountCooldown {
@@ -92,7 +95,8 @@ impl UnifiedScheduler {
         warn!(
             account_id = account_id,
             reason = reason,
-            "Account marked as unavailable for 1 hour"
+            cooldown_seconds = self.unavailable_cooldown.as_secs(),
+            "Account marked as unavailable"
         );
     }
 
@@ -301,5 +305,176 @@ impl UnifiedScheduler {
 
     pub fn get_all_accounts(&self) -> &[Arc<dyn AccountProvider>] {
         &self.accounts
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use relay_core::{Credentials, ProxyConfig};
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct MockAccount {
+        id: String,
+        name: String,
+        platform: Platform,
+        priority: u32,
+        available: AtomicBool,
+    }
+
+    impl MockAccount {
+        fn new(id: &str, platform: Platform, priority: u32) -> Self {
+            Self {
+                id: id.to_string(),
+                name: format!("Mock {}", id),
+                platform,
+                priority,
+                available: AtomicBool::new(true),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl AccountProvider for MockAccount {
+        fn id(&self) -> &str {
+            &self.id
+        }
+
+        fn name(&self) -> &str {
+            &self.name
+        }
+
+        fn platform(&self) -> Platform {
+            self.platform
+        }
+
+        fn priority(&self) -> u32 {
+            self.priority
+        }
+
+        fn is_available(&self) -> bool {
+            self.available.load(Ordering::SeqCst)
+        }
+
+        async fn get_credentials(&self) -> relay_core::Result<Credentials> {
+            Ok(Credentials::ApiKey("test-key".to_string()))
+        }
+
+        fn proxy_config(&self) -> Option<&ProxyConfig> {
+            None
+        }
+
+        fn mark_unavailable(&self, _duration: Duration, _reason: &str) {
+            self.available.store(false, Ordering::SeqCst);
+        }
+
+        fn mark_available(&self) {
+            self.available.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn test_scheduler_creation_with_custom_cooldown() {
+        let accounts: Vec<Arc<dyn AccountProvider>> =
+            vec![Arc::new(MockAccount::new("test-1", Platform::Claude, 100))];
+
+        let scheduler = UnifiedScheduler::new(accounts, 3600, 300, 1800);
+
+        assert_eq!(scheduler.sticky_ttl, Duration::from_secs(3600));
+        assert_eq!(scheduler.renewal_threshold, Duration::from_secs(300));
+        assert_eq!(scheduler.unavailable_cooldown, Duration::from_secs(1800));
+    }
+
+    #[test]
+    fn test_mark_account_unavailable_uses_configured_cooldown() {
+        let accounts: Vec<Arc<dyn AccountProvider>> =
+            vec![Arc::new(MockAccount::new("test-1", Platform::Claude, 100))];
+
+        // Set cooldown to 5 seconds for testing
+        let scheduler = UnifiedScheduler::new(accounts, 3600, 300, 5);
+
+        scheduler.mark_account_unavailable("test-1", "test_reason");
+
+        // Account should be in cooldown
+        assert!(scheduler.is_account_in_cooldown("test-1"));
+
+        // Check cooldown duration is approximately 5 seconds
+        let cooldowns = scheduler.cooldowns.read();
+        let cooldown = cooldowns.get("test-1").unwrap();
+        let remaining = cooldown.until.duration_since(Instant::now());
+        assert!(remaining <= Duration::from_secs(5));
+        assert!(remaining >= Duration::from_secs(4)); // Allow some margin
+    }
+
+    #[test]
+    fn test_mark_account_rate_limited() {
+        let accounts: Vec<Arc<dyn AccountProvider>> =
+            vec![Arc::new(MockAccount::new("test-1", Platform::Claude, 100))];
+
+        let scheduler = UnifiedScheduler::new(accounts, 3600, 300, 3600);
+
+        scheduler.mark_account_rate_limited("test-1", 60);
+
+        assert!(scheduler.is_account_in_cooldown("test-1"));
+
+        let cooldowns = scheduler.cooldowns.read();
+        let cooldown = cooldowns.get("test-1").unwrap();
+        assert_eq!(cooldown.reason, "rate_limited");
+    }
+
+    #[test]
+    fn test_mark_account_overloaded() {
+        let accounts: Vec<Arc<dyn AccountProvider>> =
+            vec![Arc::new(MockAccount::new("test-1", Platform::Claude, 100))];
+
+        let scheduler = UnifiedScheduler::new(accounts, 3600, 300, 3600);
+
+        scheduler.mark_account_overloaded("test-1", 5); // 5 minutes
+
+        assert!(scheduler.is_account_in_cooldown("test-1"));
+
+        let cooldowns = scheduler.cooldowns.read();
+        let cooldown = cooldowns.get("test-1").unwrap();
+        assert_eq!(cooldown.reason, "overloaded");
+    }
+
+    #[test]
+    fn test_cooldown_cleanup() {
+        let accounts: Vec<Arc<dyn AccountProvider>> =
+            vec![Arc::new(MockAccount::new("test-1", Platform::Claude, 100))];
+
+        // Set cooldown to 0 seconds - should expire immediately
+        let scheduler = UnifiedScheduler::new(accounts, 3600, 300, 0);
+
+        scheduler.mark_account_unavailable("test-1", "test_reason");
+
+        // Wait a tiny bit to ensure cooldown expires
+        std::thread::sleep(Duration::from_millis(10));
+
+        scheduler.cleanup_expired_sessions();
+
+        // Cooldown should be cleaned up
+        let cooldowns = scheduler.cooldowns.read();
+        assert!(cooldowns.is_empty());
+    }
+
+    #[test]
+    fn test_account_not_selected_during_cooldown() {
+        let accounts: Vec<Arc<dyn AccountProvider>> = vec![
+            Arc::new(MockAccount::new("test-1", Platform::Claude, 100)),
+            Arc::new(MockAccount::new("test-2", Platform::Claude, 50)),
+        ];
+
+        let scheduler = UnifiedScheduler::new(accounts, 3600, 300, 3600);
+
+        // Mark higher priority account as unavailable
+        scheduler.mark_account_unavailable("test-1", "test_reason");
+
+        // Should select the lower priority account since test-1 is in cooldown
+        let request_body = serde_json::json!({});
+        let selected = scheduler.select_account(Platform::Claude, &request_body).unwrap();
+
+        assert_eq!(selected.id(), "test-2");
     }
 }

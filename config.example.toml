@@ -23,6 +23,7 @@ api_keys = [
 [session]
 sticky_ttl_seconds = 3600          # Session TTL (1 hour)
 renewal_threshold_seconds = 300     # Renew when less than 5 minutes remaining
+unavailable_cooldown_seconds = 3600 # Cooldown time when account becomes unavailable (1 hour)
 
 # ============================================================
 # Account configurations - 配置你需要的账户类型

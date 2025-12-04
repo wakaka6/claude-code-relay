@@ -93,6 +93,7 @@ async fn main() {
         accounts,
         config.session.sticky_ttl_seconds,
         config.session.renewal_threshold_seconds,
+        config.session.unavailable_cooldown_seconds,
     ));
 
     let scheduler_cleanup = scheduler.clone();
