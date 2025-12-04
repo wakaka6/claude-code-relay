@@ -1,48 +1,49 @@
 use regex::Regex;
-use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-#[derive(Debug, Deserialize)]
+// Note: The following types are defined for documentation purposes and potential future use.
+// The actual request/response handling uses serde_json::Value for flexibility.
+
+#[allow(dead_code)]
+#[derive(Debug)]
 pub struct Metadata {
     pub user_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug)]
 pub struct CacheControl {
-    #[serde(rename = "type")]
     pub control_type: String,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
+#[allow(dead_code)]
+#[derive(Debug)]
 pub enum ContentPart {
     Text {
-        #[serde(rename = "type")]
         content_type: String,
         text: String,
-        #[serde(default)]
         cache_control: Option<CacheControl>,
     },
     Other(serde_json::Value),
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
+#[allow(dead_code)]
+#[derive(Debug)]
 pub enum MessageContent {
     Text(String),
     Parts(Vec<ContentPart>),
 }
 
-#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug)]
 pub struct Message {
     pub role: String,
     pub content: MessageContent,
-    #[serde(default)]
     pub cache_control: Option<CacheControl>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
+#[allow(dead_code)]
+#[derive(Debug)]
 pub enum SystemPrompt {
     Text(String),
     Parts(Vec<ContentPart>),

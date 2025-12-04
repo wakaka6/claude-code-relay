@@ -57,7 +57,9 @@ pub struct MessagesResponse {
     #[serde(rename = "type")]
     pub response_type: String,
     pub role: String,
-    pub content: Vec<ContentBlock>,
+    /// Content blocks - using serde_json::Value for full passthrough
+    /// to avoid losing unknown content types during re-serialization
+    pub content: serde_json::Value,
     pub model: String,
     #[serde(default)]
     pub stop_reason: Option<String>,

@@ -1,4 +1,4 @@
-use relay_claude::{ContentBlock, Message, MessagesRequest, MessagesResponse};
+use relay_claude::{Message, MessagesRequest, MessagesResponse};
 use relay_core::RelayError;
 
 use crate::types::*;
@@ -176,22 +176,40 @@ impl OpenAIToClaudeConverter {
         let mut content: Option<String> = None;
         let mut tool_calls: Vec<ToolCall> = Vec::new();
 
-        for block in resp.content {
-            match block {
-                ContentBlock::Text { text } => {
-                    content = Some(text);
+        // Handle content as serde_json::Value for full passthrough compatibility
+        if let Some(blocks) = resp.content.as_array() {
+            for block in blocks {
+                if let Some(block_type) = block.get("type").and_then(|t| t.as_str()) {
+                    match block_type {
+                        "text" => {
+                            if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
+                                content = Some(text.to_string());
+                            }
+                        }
+                        "tool_use" => {
+                            let id = block
+                                .get("id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            let name = block
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            let input = block.get("input").cloned().unwrap_or(serde_json::json!({}));
+                            tool_calls.push(ToolCall {
+                                id,
+                                call_type: "function".to_string(),
+                                function: FunctionCall {
+                                    name,
+                                    arguments: serde_json::to_string(&input).unwrap_or_default(),
+                                },
+                            });
+                        }
+                        _ => {} // Ignore other content types (thinking, etc.)
+                    }
                 }
-                ContentBlock::ToolUse { id, name, input } => {
-                    tool_calls.push(ToolCall {
-                        id,
-                        call_type: "function".to_string(),
-                        function: FunctionCall {
-                            name,
-                            arguments: serde_json::to_string(&input).unwrap_or_default(),
-                        },
-                    });
-                }
-                ContentBlock::Unknown => {}
             }
         }
 

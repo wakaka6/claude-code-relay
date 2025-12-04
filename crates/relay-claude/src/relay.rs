@@ -7,7 +7,7 @@ use relay_core::{
     RelayError, Result,
 };
 use reqwest::Client;
-use tracing::{debug, info};
+use tracing::{debug, info, trace, warn};
 
 use crate::types::{ClientHeaders, MessagesRequest, MessagesResponse, StreamUsage};
 
@@ -43,6 +43,108 @@ impl ClaudeRelay {
             Self::BETA_HEADER_HAIKU
         } else {
             Self::BETA_HEADER_FULL
+        }
+    }
+
+    /// Log detailed request information for debugging
+    fn log_request_details(request: &MessagesRequest, account_id: &str, api_url: &str, stream: bool) {
+        let message_count = request.messages.len();
+        let has_system = request.system.is_some();
+        let has_tools = request.tools.as_ref().map(|t| t.len()).unwrap_or(0);
+        let has_tool_choice = request.tool_choice.is_some();
+
+        debug!(
+            account_id = %account_id,
+            model = %request.model,
+            api_url = %api_url,
+            stream = stream,
+            message_count = message_count,
+            max_tokens = request.max_tokens,
+            has_system = has_system,
+            tools_count = has_tools,
+            has_tool_choice = has_tool_choice,
+            temperature = ?request.temperature,
+            top_p = ?request.top_p,
+            top_k = ?request.top_k,
+            "Preparing Claude API request"
+        );
+
+        // Log extra fields if any
+        if !request.extra.is_empty() {
+            debug!(
+                extra_fields = ?request.extra.keys().collect::<Vec<_>>(),
+                "Request contains extra fields"
+            );
+        }
+
+        // Trace level: log each message role and content type
+        for (i, msg) in request.messages.iter().enumerate() {
+            let content_info = if let Some(arr) = msg.content.as_array() {
+                let types: Vec<&str> = arr
+                    .iter()
+                    .filter_map(|c| c.get("type").and_then(|t| t.as_str()))
+                    .collect();
+                format!("array[{}]: {:?}", arr.len(), types)
+            } else if let Some(s) = msg.content.as_str() {
+                format!("string(len={})", s.len())
+            } else {
+                format!("{:?}", msg.content)
+            };
+
+            trace!(
+                message_index = i,
+                role = %msg.role,
+                content = %content_info,
+                "Message details"
+            );
+        }
+    }
+
+    /// Log client headers for debugging
+    fn log_client_headers(client_headers: &ClientHeaders, account_id: &str) {
+        if !client_headers.is_empty() {
+            let header_keys: Vec<&String> = client_headers.headers.keys().collect();
+            debug!(
+                account_id = %account_id,
+                header_count = header_keys.len(),
+                headers = ?header_keys,
+                "Client headers"
+            );
+
+            // Trace level: log header values (be careful with sensitive data)
+            for (key, value) in client_headers.iter() {
+                // Skip potentially sensitive headers
+                if key.to_lowercase().contains("auth") || key.to_lowercase().contains("key") {
+                    trace!(header = %key, value = "[REDACTED]", "Header value");
+                } else {
+                    trace!(header = %key, value = %value, "Header value");
+                }
+            }
+        }
+    }
+
+    /// Log error with full request details
+    fn log_request_error(
+        request: &MessagesRequest,
+        error: &RelayError,
+        account_id: &str,
+        api_url: &str,
+    ) {
+        warn!(
+            account_id = %account_id,
+            api_url = %api_url,
+            model = %request.model,
+            message_count = request.messages.len(),
+            error = %error,
+            "Request failed"
+        );
+
+        // Debug level: dump full request body
+        if let Ok(request_json) = serde_json::to_string_pretty(&request) {
+            debug!(
+                account_id = %account_id,
+                "Failed request body:\n{}", request_json
+            );
         }
     }
 
@@ -114,12 +216,21 @@ impl ClaudeRelay {
         let client = self.build_client(account.proxy_config())?;
         let (auth_header_name, auth_header_value) = Self::build_auth_header(&credentials);
         let api_url = Self::get_api_url(account);
+        let auth_type = match &credentials {
+            Credentials::Bearer(_) => "Bearer",
+            Credentials::ApiKey(_) => "ApiKey",
+        };
+
+        // Log detailed request information
+        Self::log_request_details(&request, account.id(), &api_url, false);
+        Self::log_client_headers(client_headers, account.id());
 
         debug!(
-            account_id = account.id(),
-            model = request.model,
-            api_url = %api_url,
-            "Relaying non-streaming request to Claude API with client headers"
+            account_id = %account.id(),
+            auth_type = auth_type,
+            anthropic_version = Self::API_VERSION,
+            anthropic_beta = Self::beta_header_for_model(&request.model),
+            "Sending non-streaming request"
         );
 
         let mut builder = client
@@ -132,16 +243,28 @@ impl ClaudeRelay {
         builder = Self::apply_client_headers(builder, client_headers);
         let response = builder.json(&request).send().await?;
 
-        if !response.status().is_success() {
-            return Err(self.handle_error_response(response).await);
+        let status = response.status();
+        debug!(
+            account_id = %account.id(),
+            status = %status,
+            "Received response"
+        );
+
+        if !status.is_success() {
+            let error = self.handle_error_response(response).await;
+            Self::log_request_error(&request, &error, account.id(), &api_url);
+            return Err(error);
         }
 
         let resp: MessagesResponse = response.json().await?;
 
         info!(
-            account_id = account.id(),
+            account_id = %account.id(),
             input_tokens = resp.usage.input_tokens,
             output_tokens = resp.usage.output_tokens,
+            cache_creation = resp.usage.cache_creation_input_tokens,
+            cache_read = resp.usage.cache_read_input_tokens,
+            stop_reason = ?resp.stop_reason,
             "Claude request completed"
         );
 
@@ -160,12 +283,21 @@ impl ClaudeRelay {
         let client = self.build_client(account.proxy_config())?;
         let (auth_header_name, auth_header_value) = Self::build_auth_header(&credentials);
         let api_url = Self::get_api_url(account);
+        let auth_type = match &credentials {
+            Credentials::Bearer(_) => "Bearer",
+            Credentials::ApiKey(_) => "ApiKey",
+        };
+
+        // Log detailed request information
+        Self::log_request_details(&request, account.id(), &api_url, true);
+        Self::log_client_headers(client_headers, account.id());
 
         debug!(
-            account_id = account.id(),
-            model = request.model,
-            api_url = %api_url,
-            "Relaying streaming request to Claude API with client headers"
+            account_id = %account.id(),
+            auth_type = auth_type,
+            anthropic_version = Self::API_VERSION,
+            anthropic_beta = Self::beta_header_for_model(&request.model),
+            "Sending streaming request"
         );
 
         let mut builder = client
@@ -178,8 +310,17 @@ impl ClaudeRelay {
         builder = Self::apply_client_headers(builder, client_headers);
         let response = builder.json(&request).send().await?;
 
-        if !response.status().is_success() {
-            return Err(self.handle_error_response(response).await);
+        let status = response.status();
+        debug!(
+            account_id = %account.id(),
+            status = %status,
+            "Received streaming response"
+        );
+
+        if !status.is_success() {
+            let error = self.handle_error_response(response).await;
+            Self::log_request_error(&request, &error, account.id(), &api_url);
+            return Err(error);
         }
 
         let account_id = account.id().to_string();
@@ -241,12 +382,20 @@ impl Relay for ClaudeRelay {
         let client = self.build_client(account.proxy_config())?;
         let (auth_header_name, auth_header_value) = Self::build_auth_header(&credentials);
         let api_url = Self::get_api_url(account);
+        let auth_type = match &credentials {
+            Credentials::Bearer(_) => "Bearer",
+            Credentials::ApiKey(_) => "ApiKey",
+        };
+
+        // Log detailed request information
+        Self::log_request_details(&request, account.id(), &api_url, false);
 
         debug!(
-            account_id = account.id(),
-            model = request.model,
-            api_url = %api_url,
-            "Relaying non-streaming request to Claude API"
+            account_id = %account.id(),
+            auth_type = auth_type,
+            anthropic_version = Self::API_VERSION,
+            anthropic_beta = Self::beta_header_for_model(&request.model),
+            "Sending non-streaming request (no client headers)"
         );
 
         let response = client
@@ -259,16 +408,28 @@ impl Relay for ClaudeRelay {
             .send()
             .await?;
 
-        if !response.status().is_success() {
-            return Err(self.handle_error_response(response).await);
+        let status = response.status();
+        debug!(
+            account_id = %account.id(),
+            status = %status,
+            "Received response"
+        );
+
+        if !status.is_success() {
+            let error = self.handle_error_response(response).await;
+            Self::log_request_error(&request, &error, account.id(), &api_url);
+            return Err(error);
         }
 
         let resp: MessagesResponse = response.json().await?;
 
         info!(
-            account_id = account.id(),
+            account_id = %account.id(),
             input_tokens = resp.usage.input_tokens,
             output_tokens = resp.usage.output_tokens,
+            cache_creation = resp.usage.cache_creation_input_tokens,
+            cache_read = resp.usage.cache_read_input_tokens,
+            stop_reason = ?resp.stop_reason,
             "Claude request completed"
         );
 
@@ -286,12 +447,20 @@ impl Relay for ClaudeRelay {
         let client = self.build_client(account.proxy_config())?;
         let (auth_header_name, auth_header_value) = Self::build_auth_header(&credentials);
         let api_url = Self::get_api_url(account);
+        let auth_type = match &credentials {
+            Credentials::Bearer(_) => "Bearer",
+            Credentials::ApiKey(_) => "ApiKey",
+        };
+
+        // Log detailed request information
+        Self::log_request_details(&request, account.id(), &api_url, true);
 
         debug!(
-            account_id = account.id(),
-            model = request.model,
-            api_url = %api_url,
-            "Relaying streaming request to Claude API"
+            account_id = %account.id(),
+            auth_type = auth_type,
+            anthropic_version = Self::API_VERSION,
+            anthropic_beta = Self::beta_header_for_model(&request.model),
+            "Sending streaming request (no client headers)"
         );
 
         let response = client
@@ -304,8 +473,17 @@ impl Relay for ClaudeRelay {
             .send()
             .await?;
 
-        if !response.status().is_success() {
-            return Err(self.handle_error_response(response).await);
+        let status = response.status();
+        debug!(
+            account_id = %account.id(),
+            status = %status,
+            "Received streaming response"
+        );
+
+        if !status.is_success() {
+            let error = self.handle_error_response(response).await;
+            Self::log_request_error(&request, &error, account.id(), &api_url);
+            return Err(error);
         }
 
         let account_id = account.id().to_string();

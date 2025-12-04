@@ -19,6 +19,12 @@
 - 调度器方法重构为异步（`select_account`、`select_account_excluding`）
 - 粘性会话从内存 HashMap 迁移到 SQLite 持久化存储
 
+### Fixed
+
+- 修复 Claude API 响应中未知 content 类型导致 400 错误的问题
+  - `MessagesResponse.content` 从 `Vec<ContentBlock>` 改为 `serde_json::Value` 实现完全透传
+  - 解决了 `thinking`、`tool_result` 等新类型被序列化为 `{"type": "Unknown"}` 的问题
+
 ## [0.1.0] - 2025-12-04
 
 ### Added
