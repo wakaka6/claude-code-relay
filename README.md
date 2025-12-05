@@ -15,11 +15,11 @@
 
 ### 多平台支持
 
-| 平台 | 认证方式 | 说明 |
-|------|----------|------|
-| **Claude** | OAuth / API Key | 支持 Claude Code CLI 的 OAuth 认证和标准 API Key |
-| **Gemini** | Google OAuth | 支持 Google OAuth 认证 |
-| **OpenAI Responses** | API Key | 支持 OpenAI Responses API (Codex CLI) |
+| 平台                 | 认证方式        | 说明                                             |
+| -------------------- | --------------- | ------------------------------------------------ |
+| **Claude**           | OAuth / API Key | 支持 Claude Code CLI 的 OAuth 认证和标准 API Key |
+| **Gemini**           | Google OAuth    | 支持 Google OAuth 认证                           |
+| **OpenAI Responses** | API Key         | 支持 OpenAI Responses API (Codex CLI)            |
 
 ### 核心功能
 
@@ -38,6 +38,7 @@
 选择以下任一方式：
 
 **Docker（推荐）：**
+
 ```bash
 mkdir cc-relay && cd cc-relay
 curl -O https://raw.githubusercontent.com/wakaka6/claude-code-relay/main/config.example.toml
@@ -46,11 +47,13 @@ mv config.example.toml config.toml
 ```
 
 **Arch Linux：**
+
 ```bash
 yay -S claude-code-relay
 ```
 
 **macOS：**
+
 ```bash
 brew tap wakaka6/tap
 brew install claude-code-relay
@@ -72,7 +75,11 @@ vim $(brew --prefix)/etc/cc-relay-server/config.toml
 ```
 
 最简配置示例（Claude API Key）：
+
 ```toml
+# api_keys 必须在 [server] 之前
+api_keys = ["your-relay-key"]
+
 [server]
 host = "127.0.0.1"
 port = 3000
@@ -154,12 +161,13 @@ log_level = "info"  # trace, debug, info, warn, error
 ### API Key 认证
 
 ```toml
-# 留空则禁用认证，任意 key 都可访问
 api_keys = [
     "your-api-key-1",
     "your-api-key-2",
 ]
 ```
+
+留空 `api_keys = []` 则禁用认证，任意 key 都可访问，统计时标记为 `anonymous`。
 
 ### 会话配置
 
@@ -187,6 +195,7 @@ enabled = true
 refresh_token = "your-refresh-token"
 api_url = "https://api.anthropic.com"  # 可选
 ```
+
 </details>
 
 <details>
@@ -201,6 +210,7 @@ priority = 90
 enabled = true
 api_key = "sk-ant-api03-xxxx"
 ```
+
 </details>
 
 <details>
@@ -215,6 +225,7 @@ priority = 100
 enabled = true
 refresh_token = "your-google-refresh-token"
 ```
+
 </details>
 
 <details>
@@ -229,6 +240,7 @@ priority = 100
 enabled = true
 api_key = "sk-your-openai-api-key"
 ```
+
 </details>
 
 <details>
@@ -242,19 +254,20 @@ port = 1080
 username = "user"  # 可选
 password = "pass"  # 可选
 ```
+
 </details>
 
 ## 🔌 API 端点
 
-| 服务 | 端点 | 说明 |
-|------|------|------|
-| **Claude** | `POST /api/v1/messages` | Claude Messages API |
-| | `POST /claude/v1/messages` | 别名路由 |
-| **Gemini** | `POST /gemini/v1/models/:model:generateContent` | 标准生成 |
-| | `POST /gemini/v1/models/:model:streamGenerateContent` | 流式生成 |
-| **OpenAI 兼容** | `POST /openai/v1/chat/completions` | 转换为 Claude |
-| **OpenAI Responses** | `POST /openai/v1/responses` | Responses API |
-| **系统** | `GET /health` | 健康检查 |
+| 服务                 | 端点                                                  | 说明                |
+| -------------------- | ----------------------------------------------------- | ------------------- |
+| **Claude**           | `POST /api/v1/messages`                               | Claude Messages API |
+|                      | `POST /claude/v1/messages`                            | 别名路由            |
+| **Gemini**           | `POST /gemini/v1/models/:model:generateContent`       | 标准生成            |
+|                      | `POST /gemini/v1/models/:model:streamGenerateContent` | 流式生成            |
+| **OpenAI 兼容**      | `POST /openai/v1/chat/completions`                    | 转换为 Claude       |
+| **OpenAI Responses** | `POST /openai/v1/responses`                           | Responses API       |
+| **系统**             | `GET /health`                                         | 健康检查            |
 
 ## 📱 客户端配置
 
@@ -266,6 +279,7 @@ export ANTHROPIC_BASE_URL=http://localhost:3000
 export ANTHROPIC_API_KEY=your-relay-api-key
 claude
 ```
+
 </details>
 
 <details>
@@ -276,6 +290,7 @@ export GEMINI_API_BASE=http://localhost:3000/gemini
 export GEMINI_API_KEY=your-relay-api-key
 gemini
 ```
+
 </details>
 
 <details>
@@ -286,22 +301,29 @@ export OPENAI_BASE_URL=http://localhost:3000/openai/v1
 export OPENAI_API_KEY=your-relay-api-key
 codex
 ```
+
 </details>
 
 <details>
 <summary><b>Python / Node.js SDK</b></summary>
 
 **Python:**
+
 ```python
 import anthropic
 client = anthropic.Anthropic(base_url="http://localhost:3000", api_key="your-key")
 ```
 
 **Node.js:**
+
 ```javascript
 import Anthropic from "@anthropic-ai/sdk";
-const client = new Anthropic({ baseURL: "http://localhost:3000", apiKey: "your-key" });
+const client = new Anthropic({
+  baseURL: "http://localhost:3000",
+  apiKey: "your-key",
+});
 ```
+
 </details>
 
 ## 🛠️ 开发

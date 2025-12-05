@@ -14,11 +14,14 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
 use super::claude::AppError;
+use crate::db::DbPool;
 use crate::scheduler::UnifiedScheduler;
 
 pub struct GeminiRouteState {
     pub scheduler: Arc<UnifiedScheduler>,
     pub relay: Arc<GeminiRelay>,
+    #[allow(dead_code)] // Reserved for future usage tracking when Gemini API exposes token counts
+    pub db_pool: DbPool,
 }
 
 fn parse_model_and_method(path: &str) -> Result<(String, String), RelayError> {

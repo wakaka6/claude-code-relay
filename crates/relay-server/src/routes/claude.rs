@@ -3,22 +3,26 @@ use axum::{
     extract::State,
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    Json,
+    Extension, Json,
 };
 use bytes::Bytes;
 use futures::stream::StreamExt;
-use relay_claude::{ClientHeaders, ClaudeRelay, MessagesRequest};
+use relay_claude::{extract_usage_from_chunk, ClientHeaders, ClaudeRelay, MessagesRequest};
 use relay_core::{Platform, RelayError};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info, warn};
 
+use crate::db::DbPool;
+use crate::middleware::ClientApiKeyHash;
+use crate::routes::record_usage_if_valid;
 use crate::scheduler::UnifiedScheduler;
 
 pub struct ClaudeRouteState {
     pub scheduler: Arc<UnifiedScheduler>,
     pub relay: Arc<ClaudeRelay>,
+    pub db_pool: DbPool,
 }
 
 const CLAUDE_CODE_HEADER_KEYS: &[&str] = &[
@@ -97,6 +101,7 @@ fn handle_relay_error(
 
 pub async fn messages(
     State(state): State<Arc<ClaudeRouteState>>,
+    Extension(api_key_hash): Extension<ClientApiKeyHash>,
     headers: HeaderMap,
     Json(request): Json<MessagesRequest>,
 ) -> Result<Response, AppError> {
@@ -147,7 +152,20 @@ pub async fn messages(
                 .relay_with_headers(account.as_ref(), request.clone(), &client_headers)
                 .await
             {
-                Ok(response) => return Ok(Json(response).into_response()),
+                Ok(response) => {
+                    record_usage_if_valid(
+                        &state.db_pool,
+                        &api_key_hash,
+                        &account_id,
+                        &model,
+                        response.usage.input_tokens,
+                        response.usage.output_tokens,
+                        response.usage.cache_creation_input_tokens.unwrap_or(0),
+                        response.usage.cache_read_input_tokens.unwrap_or(0),
+                    )
+                    .await;
+                    return Ok(Json(response).into_response());
+                }
                 Err(e) => Err(e),
             }
         };
@@ -156,11 +174,32 @@ pub async fn messages(
             Ok(stream) => {
                 let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(32);
 
+                let db_pool = state.db_pool.clone();
+                let api_key_hash_clone = api_key_hash.clone();
+                let account_id_clone = account_id.clone();
+                let model_clone = model.clone();
+
                 tokio::spawn(async move {
                     let mut stream = stream;
+                    let mut total_input = 0u32;
+                    let mut total_output = 0u32;
+                    let mut cache_creation = 0u32;
+                    let mut cache_read = 0u32;
+
                     while let Some(chunk) = stream.next().await {
                         match chunk {
                             Ok(bytes) => {
+                                if let Some(usage) = extract_usage_from_chunk(&bytes) {
+                                    total_input = total_input.max(usage.input_tokens);
+                                    total_output = total_output.max(usage.output_tokens);
+                                    if let Some(cc) = usage.cache_creation_input_tokens {
+                                        cache_creation = cache_creation.max(cc);
+                                    }
+                                    if let Some(cr) = usage.cache_read_input_tokens {
+                                        cache_read = cache_read.max(cr);
+                                    }
+                                }
+
                                 if tx.send(Ok(bytes)).await.is_err() {
                                     break;
                                 }
@@ -171,6 +210,18 @@ pub async fn messages(
                             }
                         }
                     }
+
+                    record_usage_if_valid(
+                        &db_pool,
+                        &api_key_hash_clone,
+                        &account_id_clone,
+                        &model_clone,
+                        total_input,
+                        total_output,
+                        cache_creation,
+                        cache_read,
+                    )
+                    .await;
                 });
 
                 let body = Body::from_stream(ReceiverStream::new(rx));

@@ -47,6 +47,7 @@ async fn main() {
     init_tracing(&config.server.log_level);
 
     info!(config_path = %args.config, "Starting Claude Relay Service");
+    info!(api_keys_count = config.api_keys.len(), api_keys = ?config.api_keys, "Loaded API keys config");
 
     let pool = match db::init_database(&config.server.database_path).await {
         Ok(p) => p,
@@ -112,6 +113,12 @@ async fn main() {
 
     let api_key_validator = Arc::new(ApiKeyValidator::new(config.api_keys.clone()));
 
+    if api_key_validator.is_empty() {
+        info!("No API keys configured - all requests will be anonymous");
+    } else {
+        info!(count = config.api_keys.len(), "API key authentication enabled");
+    }
+
     let claude_relay = Arc::new(ClaudeRelay::new());
     let gemini_relay = Arc::new(GeminiRelay::new());
     let codex_relay = Arc::new(relay_codex::CodexRelay::new());
@@ -119,21 +126,25 @@ async fn main() {
     let claude_state = Arc::new(ClaudeRouteState {
         scheduler: scheduler.clone(),
         relay: claude_relay.clone(),
+        db_pool: pool.clone(),
     });
 
     let gemini_state = Arc::new(GeminiRouteState {
         scheduler: scheduler.clone(),
         relay: gemini_relay,
+        db_pool: pool.clone(),
     });
 
     let openai_state = Arc::new(OpenAIRouteState {
         scheduler: scheduler.clone(),
         relay: claude_relay,
+        db_pool: pool.clone(),
     });
 
     let codex_state = Arc::new(routes::CodexRouteState {
         scheduler: scheduler.clone(),
         relay: codex_relay,
+        db_pool: pool.clone(),
     });
 
     let claude_routes = Router::new()

@@ -7,6 +7,28 @@
 
 ## [Unreleased]
 
+## [0.2.2] - 2025-12-06
+
+### Added
+
+- Token 使用量持久化功能
+  - 按客户端 API Key（SHA256 hash）+ 账户 + 模型维度统计
+  - 支持 Claude 和 OpenAI 兼容路由的 token 统计
+  - 流式响应实时提取 usage 信息
+- 使用 sqlx migrate 管理数据库迁移
+- 新增单元测试覆盖 `ClientApiKeyHash`、`record_usage_if_valid` 等模块
+
+### Fixed
+
+- 修复 `api_keys` 配置在 `[server]` section 之后被忽略的问题
+  - 根本原因：TOML 解析规则将 section 后的键值对归属于该 section
+  - 解决方案：将 `api_keys` 移至配置文件顶部（`[server]` 之前）
+- 更新 `config.example.toml` 和文档，确保配置格式正确
+
+### Changed
+
+- 服务启动时输出 API keys 配置状态日志
+
 ## [0.2.1] - 2025-12-05
 
 ### Added

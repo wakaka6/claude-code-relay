@@ -3,11 +3,11 @@ use axum::{
     extract::State,
     http::{header, StatusCode},
     response::{IntoResponse, Response},
-    Json,
+    Extension, Json,
 };
 use bytes::Bytes;
 use futures::stream::StreamExt;
-use relay_claude::ClaudeRelay;
+use relay_claude::{extract_usage_from_chunk, ClaudeRelay};
 use relay_core::{Platform, Relay};
 use relay_openai_to_anthropic::{ChatCompletionRequest, OpenAIToClaudeConverter};
 use std::sync::Arc;
@@ -15,15 +15,20 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
 use super::claude::AppError;
+use crate::db::DbPool;
+use crate::middleware::ClientApiKeyHash;
+use crate::routes::record_usage_if_valid;
 use crate::scheduler::UnifiedScheduler;
 
 pub struct OpenAIRouteState {
     pub scheduler: Arc<UnifiedScheduler>,
     pub relay: Arc<ClaudeRelay>,
+    pub db_pool: DbPool,
 }
 
 pub async fn chat_completions(
     State(state): State<Arc<OpenAIRouteState>>,
+    Extension(api_key_hash): Extension<ClientApiKeyHash>,
     Json(request): Json<ChatCompletionRequest>,
 ) -> Result<Response, AppError> {
     let is_stream = request.stream;
@@ -39,6 +44,8 @@ pub async fn chat_completions(
         .select_account(Platform::Claude, &body_value)
         .await?;
 
+    let account_id = account.id().to_string();
+
     if is_stream {
         let stream = state
             .relay
@@ -47,13 +54,33 @@ pub async fn chat_completions(
 
         let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(32);
 
+        let db_pool = state.db_pool.clone();
+        let api_key_hash_clone = api_key_hash.clone();
+        let account_id_clone = account_id.clone();
+        let model_clone = model.clone();
+
         tokio::spawn(async move {
             let mut stream = stream;
             let mut buffer = String::new();
+            let mut total_input = 0u32;
+            let mut total_output = 0u32;
+            let mut cache_creation = 0u32;
+            let mut cache_read = 0u32;
 
             while let Some(chunk) = stream.next().await {
                 match chunk {
                     Ok(bytes) => {
+                        if let Some(usage) = extract_usage_from_chunk(&bytes) {
+                            total_input = total_input.max(usage.input_tokens);
+                            total_output = total_output.max(usage.output_tokens);
+                            if let Some(cc) = usage.cache_creation_input_tokens {
+                                cache_creation = cache_creation.max(cc);
+                            }
+                            if let Some(cr) = usage.cache_read_input_tokens {
+                                cache_read = cache_read.max(cr);
+                            }
+                        }
+
                         if let Ok(text) = std::str::from_utf8(&bytes) {
                             buffer.push_str(text);
 
@@ -79,6 +106,18 @@ pub async fn chat_completions(
             }
 
             let _ = tx.send(Ok(Bytes::from("data: [DONE]\n\n"))).await;
+
+            record_usage_if_valid(
+                &db_pool,
+                &api_key_hash_clone,
+                &account_id_clone,
+                &model_clone,
+                total_input,
+                total_output,
+                cache_creation,
+                cache_read,
+            )
+            .await;
         });
 
         let body = Body::from_stream(ReceiverStream::new(rx));
@@ -92,6 +131,19 @@ pub async fn chat_completions(
             .unwrap())
     } else {
         let response = state.relay.relay(account.as_ref(), claude_request).await?;
+
+        record_usage_if_valid(
+            &state.db_pool,
+            &api_key_hash,
+            &account_id,
+            &model,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            response.usage.cache_creation_input_tokens.unwrap_or(0),
+            response.usage.cache_read_input_tokens.unwrap_or(0),
+        )
+        .await;
+
         let openai_response = OpenAIToClaudeConverter::convert_response(response);
         Ok(Json(openai_response).into_response())
     }

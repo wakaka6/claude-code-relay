@@ -322,4 +322,84 @@ api_key = "sk-test"
         // Custom value
         assert_eq!(config.session.unavailable_cooldown_seconds, 300);
     }
+
+    #[test]
+    fn test_api_keys_before_server_section() {
+        let content = r#"
+api_keys = ["key1", "key2"]
+
+[server]
+host = "127.0.0.1"
+port = 3000
+
+[[accounts]]
+type = "claude-api"
+id = "test"
+name = "Test"
+api_key = "sk-test"
+"#;
+        let config: Config = toml::from_str(content).unwrap();
+        assert_eq!(config.api_keys.len(), 2);
+        assert_eq!(config.api_keys[0], "key1");
+        assert_eq!(config.api_keys[1], "key2");
+    }
+
+    #[test]
+    fn test_api_keys_after_server_section_ignored() {
+        // IMPORTANT: This test documents a TOML parsing quirk.
+        // api_keys placed AFTER [server] is parsed as server.api_keys,
+        // which is ignored because ServerConfig doesn't have that field.
+        let content = r#"
+[server]
+host = "127.0.0.1"
+port = 3000
+
+api_keys = ["key1", "key2"]
+
+[[accounts]]
+type = "claude-api"
+id = "test"
+name = "Test"
+api_key = "sk-test"
+"#;
+        let config: Config = toml::from_str(content).unwrap();
+        // api_keys is empty because it was placed after [server]!
+        assert_eq!(config.api_keys.len(), 0, "api_keys after [server] should be ignored");
+    }
+
+    #[test]
+    fn test_api_keys_empty_array() {
+        let content = r#"
+api_keys = []
+
+[server]
+host = "127.0.0.1"
+port = 3000
+
+[[accounts]]
+type = "claude-api"
+id = "test"
+name = "Test"
+api_key = "sk-test"
+"#;
+        let config: Config = toml::from_str(content).unwrap();
+        assert!(config.api_keys.is_empty());
+    }
+
+    #[test]
+    fn test_api_keys_not_specified() {
+        let content = r#"
+[server]
+host = "127.0.0.1"
+port = 3000
+
+[[accounts]]
+type = "claude-api"
+id = "test"
+name = "Test"
+api_key = "sk-test"
+"#;
+        let config: Config = toml::from_str(content).unwrap();
+        assert!(config.api_keys.is_empty());
+    }
 }

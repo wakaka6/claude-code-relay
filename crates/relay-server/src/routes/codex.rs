@@ -15,11 +15,14 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info, warn};
 
 use super::claude::AppError;
+use crate::db::DbPool;
 use crate::scheduler::UnifiedScheduler;
 
 pub struct CodexRouteState {
     pub scheduler: Arc<UnifiedScheduler>,
     pub relay: Arc<CodexRelay>,
+    #[allow(dead_code)] // Reserved for future usage tracking when Codex API exposes token counts
+    pub db_pool: DbPool,
 }
 
 const MAX_RETRIES: usize = 3;

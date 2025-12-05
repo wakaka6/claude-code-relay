@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 license = "MIT"
 authors = ["Claude Relay Service"]
@@ -31,7 +31,7 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "timeout"] }
 
 # 数据库
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate"] }
 libsqlite3-sys = { version = "0.31", features = ["bundled"] }
 
 # 序列化

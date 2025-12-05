@@ -15,11 +15,11 @@ A high-performance AI API relay service built with Rust. Supports multi-platform
 
 ### Multi-Platform Support
 
-| Platform | Authentication | Description |
-|----------|----------------|-------------|
-| **Claude** | OAuth / API Key | Supports Claude Code CLI OAuth and standard API Key |
-| **Gemini** | Google OAuth | Supports Google OAuth authentication |
-| **OpenAI Responses** | API Key | Supports OpenAI Responses API (Codex CLI) |
+| Platform             | Authentication  | Description                                         |
+| -------------------- | --------------- | --------------------------------------------------- |
+| **Claude**           | OAuth / API Key | Supports Claude Code CLI OAuth and standard API Key |
+| **Gemini**           | Google OAuth    | Supports Google OAuth authentication                |
+| **OpenAI Responses** | API Key         | Supports OpenAI Responses API (Codex CLI)           |
 
 ### Core Features
 
@@ -38,6 +38,7 @@ A high-performance AI API relay service built with Rust. Supports multi-platform
 Choose one of the following methods:
 
 **Docker (Recommended):**
+
 ```bash
 mkdir cc-relay && cd cc-relay
 curl -O https://raw.githubusercontent.com/wakaka6/claude-code-relay/main/config.example.toml
@@ -46,11 +47,13 @@ mv config.example.toml config.toml
 ```
 
 **Arch Linux:**
+
 ```bash
 yay -S claude-code-relay
 ```
 
 **macOS:**
+
 ```bash
 brew tap wakaka6/tap
 brew install claude-code-relay
@@ -72,7 +75,10 @@ vim $(brew --prefix)/etc/cc-relay-server/config.toml
 ```
 
 Minimal configuration example (Claude API Key):
+
 ```toml
+api_keys = ["your-relay-key"]
+
 [server]
 host = "127.0.0.1"
 port = 3000
@@ -154,12 +160,13 @@ log_level = "info"  # trace, debug, info, warn, error
 ### API Key Authentication
 
 ```toml
-# Leave empty to disable auth, any key will work
 api_keys = [
     "your-api-key-1",
     "your-api-key-2",
 ]
 ```
+
+Leave empty `api_keys = []` to disable authentication. Any key will work, and usage will be tracked as `anonymous`.
 
 ### Session Configuration
 
@@ -187,6 +194,7 @@ enabled = true
 refresh_token = "your-refresh-token"
 api_url = "https://api.anthropic.com"  # Optional
 ```
+
 </details>
 
 <details>
@@ -201,6 +209,7 @@ priority = 90
 enabled = true
 api_key = "sk-ant-api03-xxxx"
 ```
+
 </details>
 
 <details>
@@ -215,6 +224,7 @@ priority = 100
 enabled = true
 refresh_token = "your-google-refresh-token"
 ```
+
 </details>
 
 <details>
@@ -229,6 +239,7 @@ priority = 100
 enabled = true
 api_key = "sk-your-openai-api-key"
 ```
+
 </details>
 
 <details>
@@ -242,19 +253,20 @@ port = 1080
 username = "user"  # Optional
 password = "pass"  # Optional
 ```
+
 </details>
 
 ## 🔌 API Endpoints
 
-| Service | Endpoint | Description |
-|---------|----------|-------------|
-| **Claude** | `POST /api/v1/messages` | Claude Messages API |
-| | `POST /claude/v1/messages` | Alias route |
-| **Gemini** | `POST /gemini/v1/models/:model:generateContent` | Standard generation |
-| | `POST /gemini/v1/models/:model:streamGenerateContent` | Streaming generation |
-| **OpenAI Compatible** | `POST /openai/v1/chat/completions` | Convert to Claude |
-| **OpenAI Responses** | `POST /openai/v1/responses` | Responses API |
-| **System** | `GET /health` | Health check |
+| Service               | Endpoint                                              | Description          |
+| --------------------- | ----------------------------------------------------- | -------------------- |
+| **Claude**            | `POST /api/v1/messages`                               | Claude Messages API  |
+|                       | `POST /claude/v1/messages`                            | Alias route          |
+| **Gemini**            | `POST /gemini/v1/models/:model:generateContent`       | Standard generation  |
+|                       | `POST /gemini/v1/models/:model:streamGenerateContent` | Streaming generation |
+| **OpenAI Compatible** | `POST /openai/v1/chat/completions`                    | Convert to Claude    |
+| **OpenAI Responses**  | `POST /openai/v1/responses`                           | Responses API        |
+| **System**            | `GET /health`                                         | Health check         |
 
 ## 📱 Client Configuration
 
@@ -266,6 +278,7 @@ export ANTHROPIC_BASE_URL=http://localhost:3000
 export ANTHROPIC_API_KEY=your-relay-api-key
 claude
 ```
+
 </details>
 
 <details>
@@ -276,6 +289,7 @@ export GEMINI_API_BASE=http://localhost:3000/gemini
 export GEMINI_API_KEY=your-relay-api-key
 gemini
 ```
+
 </details>
 
 <details>
@@ -286,22 +300,29 @@ export OPENAI_BASE_URL=http://localhost:3000/openai/v1
 export OPENAI_API_KEY=your-relay-api-key
 codex
 ```
+
 </details>
 
 <details>
 <summary><b>Python / Node.js SDK</b></summary>
 
 **Python:**
+
 ```python
 import anthropic
 client = anthropic.Anthropic(base_url="http://localhost:3000", api_key="your-key")
 ```
 
 **Node.js:**
+
 ```javascript
 import Anthropic from "@anthropic-ai/sdk";
-const client = new Anthropic({ baseURL: "http://localhost:3000", apiKey: "your-key" });
+const client = new Anthropic({
+  baseURL: "http://localhost:3000",
+  apiKey: "your-key",
+});
 ```
+
 </details>
 
 ## 🛠️ Development
