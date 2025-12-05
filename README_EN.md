@@ -351,6 +351,27 @@ cargo clippy
 cargo fmt
 ```
 
+## ❓ FAQ
+
+<details>
+<summary><b>Cannot connect to service after starting with Docker Compose</b></summary>
+
+**Symptom:** After starting the service with `docker compose up`, the client cannot connect to `localhost:3000`, showing connection refused or service not found errors.
+
+**Cause:** The `host` in the config file is set to `127.0.0.1`, which means the service only listens on the container's internal localhost, not on externally accessible network interfaces.
+
+**Solution:** Change `host` to `0.0.0.0` in your config file to listen on all network interfaces:
+
+```toml
+[server]
+host = "0.0.0.0"  # Allow external access
+port = 3000
+```
+
+> **Note:** `127.0.0.1` only allows local access, suitable for running directly on the host machine. Inside a Docker container, `127.0.0.1` refers to the container itself, making it inaccessible from outside. Setting it to `0.0.0.0` makes the service listen on all network interfaces within the container, which combined with Docker's port mapping allows access from the host machine.
+
+</details>
+
 ## 🤝 Contributing
 
 Contributions are welcome! Feel free to submit Issues and Pull Requests.
