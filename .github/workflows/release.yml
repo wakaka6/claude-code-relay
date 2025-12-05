@@ -269,9 +269,11 @@ jobs:
         run: |
           docker run --rm -v "$(pwd):/pkg" archlinux:base-devel bash -c "
             useradd -m builder
-            chown -R builder:builder /pkg
-            cd /pkg
+            cp -r /pkg /tmp/build
+            chown -R builder:builder /tmp/build
+            cd /tmp/build
             su builder -c 'makepkg --printsrcinfo > .SRCINFO'
+            cp /tmp/build/.SRCINFO /pkg/.SRCINFO
           "
 
       - name: Commit and push
