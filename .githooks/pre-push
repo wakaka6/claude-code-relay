@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Pre-push hook: Sync Cargo.lock when pushing version tags
+# Prevents AUR build failures due to --locked flag
+
+while read local_ref local_sha remote_ref remote_sha; do
+    if [[ "$local_ref" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        tag_name="${local_ref#refs/tags/}"
+        echo "Detected version tag: $tag_name"
+        echo "Checking Cargo.lock sync..."
+
+        cargo update --workspace 2>/dev/null
+
+        if ! git diff --quiet Cargo.lock 2>/dev/null; then
+            echo "ERROR: Cargo.lock is out of sync with workspace versions"
+            echo ""
+            echo "Run the following commands to fix:"
+            echo "  git tag -d $tag_name"
+            echo "  cargo update --workspace"
+            echo "  git add Cargo.lock"
+            echo "  git commit --amend --no-edit"
+            echo "  git tag $tag_name"
+            echo "  git push origin main --tags"
+            echo ""
+            exit 1
+        fi
+
+        echo "Cargo.lock is in sync"
+    fi
+done
+
+exit 0

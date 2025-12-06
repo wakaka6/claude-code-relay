@@ -7,6 +7,14 @@
 
 ## [Unreleased]
 
+## [0.2.3] - 2025-12-06
+
+### Fixed
+
+- 修复 AUR 构建时 sqlx-macros 链接系统 SQLite 导致的编译错误
+  - 移除 sqlx 的 `macros` 和 `migrate` feature 依赖
+  - 改用运行时迁移替代编译时 `sqlx::migrate!` 宏
+
 ## [0.2.2] - 2025-12-06
 
 ### Added
